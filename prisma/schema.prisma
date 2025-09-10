@@ -1,0 +1,110 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Issue {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  priority    Priority @default(MEDIUM)
+  status      Status   @default(OPEN)
+  assignedTo  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  notes        Note[]
+  meetingItems MeetingItem[]
+  emailIssues  EmailIssue[]
+
+  @@map("issues")
+}
+
+model Note {
+  id        String   @id @default(cuid())
+  issueId   String
+  content   String
+  author    String?
+  createdAt DateTime @default(now())
+
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  @@map("notes")
+}
+
+model Meeting {
+  id           String   @id @default(cuid())
+  title        String
+  meetingDate  DateTime
+  agenda       String?
+  minutes      String?
+  actionItems  String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  meetingItems MeetingItem[]
+
+  @@map("meetings")
+}
+
+model MeetingItem {
+  id              String  @id @default(cuid())
+  meetingId       String
+  issueId         String
+  discussionNotes String?
+  actionItems     String?
+
+  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  issue   Issue   @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  @@map("meeting_items")
+}
+
+model EmailDraft {
+  id        String   @id @default(cuid())
+  subject   String
+  content   String
+  sentAt    DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  emailIssues EmailIssue[]
+
+  @@map("email_drafts")
+}
+
+model EmailIssue {
+  id           String @id @default(cuid())
+  emailDraftId String
+  issueId      String
+
+  emailDraft EmailDraft @relation(fields: [emailDraftId], references: [id], onDelete: Cascade)
+  issue      Issue      @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  @@unique([emailDraftId, issueId])
+  @@map("email_issues")
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum Status {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
