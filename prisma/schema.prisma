@@ -14,20 +14,55 @@ datasource db {
 }
 
 model Issue {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  priority    Priority @default(MEDIUM)
-  status      Status   @default(OPEN)
-  assignedTo  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                String    @id @default(cuid())
+  title             String
+  description       String?
+  resolutionPlan    String?
+  workPerformed     String?
+  roadblocks        String?
+  usersInvolved     String?
+  priority          Priority  @default(MEDIUM)
+  status            Status    @default(OPEN)
+  categoryId        String?
+  assignedTo        String?
+  cmicTicketNumber  String?
+  cmicTicketOpened  DateTime?
+  cmicTicketClosed  Boolean   @default(false)
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
+  category     Category?     @relation(fields: [categoryId], references: [id])
   notes        Note[]
+  cmicNotes    CmicNote[]
   meetingItems MeetingItem[]
   emailIssues  EmailIssue[]
 
   @@map("issues")
+}
+
+model CmicNote {
+  id        String   @id @default(cuid())
+  issueId   String
+  content   String
+  author    String?
+  createdAt DateTime @default(now())
+
+  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  @@map("cmic_notes")
+}
+
+model Category {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  color       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  issues Issue[]
+
+  @@map("categories")
 }
 
 model Note {
@@ -43,12 +78,17 @@ model Note {
 }
 
 model Meeting {
-  id           String   @id @default(cuid())
+  id           String      @id @default(cuid())
   title        String
   meetingDate  DateTime
   agenda       String?
   minutes      String?
   actionItems  String?
+  status       MeetingStatus @default(PLANNED)
+  startedAt    DateTime?
+  endedAt      DateTime?
+  generalNotes String?
+  externalHelp String?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
@@ -58,15 +98,18 @@ model Meeting {
 }
 
 model MeetingItem {
-  id              String  @id @default(cuid())
+  id              String   @id @default(cuid())
   meetingId       String
   issueId         String
   discussionNotes String?
   actionItems     String?
+  carriedOver     Boolean  @default(false)
+  addedAt         DateTime @default(now())
 
   meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
   issue   Issue   @relation(fields: [issueId], references: [id], onDelete: Cascade)
 
+  @@unique([meetingId, issueId])
   @@map("meeting_items")
 }
 
@@ -107,4 +150,10 @@ enum Status {
   IN_PROGRESS
   RESOLVED
   CLOSED
+}
+
+enum MeetingStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
 }

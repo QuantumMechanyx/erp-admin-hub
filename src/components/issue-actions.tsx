@@ -1,0 +1,115 @@
+"use client"
+
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { deleteIssue } from "@/lib/actions"
+import { Settings, Trash2, ExternalLink } from "lucide-react"
+import { useState } from "react"
+
+type Issue = {
+  id: string
+  title: string
+  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT"
+  status: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED"
+  category?: { name: string; color?: string } | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+interface IssueActionsProps {
+  issue: Issue
+}
+
+export function IssueActions({ issue }: IssueActionsProps) {
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const handleDeleteConfirm = async () => {
+    setIsDeleting(true)
+    try {
+      await deleteIssue(issue.id)
+      setShowDeleteDialog(false)
+    } catch (error) {
+      console.error("Failed to delete issue:", error)
+    } finally {
+      setIsDeleting(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <Settings className="w-5 h-5" />
+          <CardTitle>Quick Actions</CardTitle>
+        </div>
+        <CardDescription>
+          Manage this issue or take quick actions
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Button variant="outline" className="w-full justify-start" asChild>
+            <a href={`/meetings?issue=${issue.id}`}>
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Add to Meeting
+            </a>
+          </Button>
+          
+          <Button variant="outline" className="w-full justify-start" asChild>
+            <a href={`/emails?issue=${issue.id}`}>
+              <ExternalLink className="w-4 h-4 mr-2" />
+              Include in Email
+            </a>
+          </Button>
+        </div>
+
+        <div className="border-t pt-4">
+          <h4 className="font-medium text-sm mb-2">Issue Details</h4>
+          <div className="space-y-2 text-sm">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Priority:</span>
+              <Badge variant="outline">{issue.priority}</Badge>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Status:</span>
+              <Badge variant="outline">{issue.status.replace("_", " ")}</Badge>
+            </div>
+            {issue.category && (
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Category:</span>
+                <Badge variant="outline">{issue.category.name}</Badge>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="border-t pt-4">
+          <Button 
+            variant="destructive" 
+            size="sm" 
+            className="w-full"
+            onClick={() => setShowDeleteDialog(true)}
+            disabled={isDeleting}
+          >
+            <Trash2 className="w-4 h-4 mr-2" />
+            Delete Issue
+          </Button>
+        </div>
+      </CardContent>
+
+      <DeleteConfirmationDialog
+        isOpen={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+        onConfirm={handleDeleteConfirm}
+        title="Delete Issue"
+        description="This action cannot be undone. This will permanently delete the issue and all associated data including notes, CMiC communications, and meeting references."
+        confirmationText="delete"
+        itemName={issue.title}
+        isLoading={isDeleting}
+      />
+    </Card>
+  )
+}

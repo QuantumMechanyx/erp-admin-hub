@@ -1,0 +1,59 @@
+import { Suspense } from "react"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Plus } from "lucide-react"
+import Link from "next/link"
+import { getIssues, getCategories } from "@/lib/actions"
+import { IssuesList } from "@/components/issues-list"
+import { DashboardStats } from "@/components/dashboard-stats"
+
+export default async function Dashboard() {
+  const [issues, categories] = await Promise.all([
+    getIssues(),
+    getCategories()
+  ])
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold">ERP Issues Dashboard</h1>
+          <p className="text-muted-foreground">
+            Manage and track high-priority ERP integration issues
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button asChild>
+            <Link href="/dashboard/categories">
+              Manage Categories
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/dashboard/new">
+              <Plus className="w-4 h-4 mr-2" />
+              New Issue
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      <Suspense fallback={<div>Loading stats...</div>}>
+        <DashboardStats issues={issues} categories={categories} />
+      </Suspense>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Active Issues</CardTitle>
+          <CardDescription>
+            All current ERP issues organized by priority and status
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Suspense fallback={<div>Loading issues...</div>}>
+            <IssuesList issues={issues} categories={categories} />
+          </Suspense>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

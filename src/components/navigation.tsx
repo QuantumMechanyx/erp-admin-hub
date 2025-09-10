@@ -7,6 +7,11 @@ import { Button } from "@/components/ui/button"
 
 const navigation = [
   {
+    name: "Home",
+    href: "/",
+    description: "Main interface selector"
+  },
+  {
     name: "Dashboard",
     href: "/dashboard",
     description: "Working interface for issue management"
