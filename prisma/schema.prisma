@@ -21,6 +21,7 @@ model Issue {
   workPerformed     String?
   roadblocks        String?
   usersInvolved     String?
+  additionalHelp    String?
   priority          Priority  @default(MEDIUM)
   status            Status    @default(OPEN)
   categoryId        String?

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { getIssue } from "@/lib/actions"
@@ -7,7 +8,7 @@ import { IssueNotes } from "@/components/issue-notes"
 import { IssueActions } from "@/components/issue-actions"
 import { CmicTicketManager } from "@/components/cmic-ticket-manager"
 import Link from "next/link"
-import { ArrowLeft, Edit, Calendar, User } from "lucide-react"
+import { ArrowLeft, Edit, Calendar, User, AlertTriangle, ChevronDown } from "lucide-react"
 import { formatDistanceToNow, format } from "date-fns"
 
 const priorityColors = {
@@ -146,6 +147,34 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
                 </div>
               </CardContent>
             </Card>
+          )}
+
+          {issue.additionalHelp && (
+            <Collapsible defaultOpen={false}>
+              <Card>
+                <CollapsibleTrigger asChild>
+                  <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+                    <CardTitle className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="w-5 h-5" />
+                        Additional Help Needed
+                      </div>
+                      <ChevronDown className="w-4 h-4" />
+                    </CardTitle>
+                    <CardDescription>
+                      Areas requiring collaboration with Accounting department
+                    </CardDescription>
+                  </CardHeader>
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  <CardContent>
+                    <div className="prose prose-sm max-w-none">
+                      <p className="whitespace-pre-wrap">{issue.additionalHelp}</p>
+                    </div>
+                  </CardContent>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
           )}
         </div>
 

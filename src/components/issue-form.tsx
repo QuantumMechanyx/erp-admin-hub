@@ -27,6 +27,7 @@ type Issue = {
   workPerformed?: string | null
   roadblocks?: string | null
   usersInvolved?: string | null
+  additionalHelp?: string | null
   priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT"
   status: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED"
   categoryId?: string | null
@@ -50,6 +51,7 @@ export function IssueForm({ categories, issue, isEditing = false }: IssueFormPro
   const [showWorkPerformed, setShowWorkPerformed] = useState(isEditing && !!issue?.workPerformed)
   const [showRoadblocks, setShowRoadblocks] = useState(isEditing && !!issue?.roadblocks)
   const [showUsersInvolved, setShowUsersInvolved] = useState(isEditing && !!issue?.usersInvolved)
+  const [showAdditionalHelp, setShowAdditionalHelp] = useState(isEditing && !!issue?.additionalHelp)
   const [showCmicTicket, setShowCmicTicket] = useState(isEditing && !!issue?.cmicTicketNumber)
 
   const action = isEditing && issue 
@@ -310,6 +312,44 @@ export function IssueForm({ categories, issue, isEditing = false }: IssueFormPro
                 name="usersInvolved"
                 placeholder="List the users, teams, or stakeholders involved in this issue - both those affected and those working on the resolution."
                 defaultValue={issue?.usersInvolved || ""}
+                rows={3}
+              />
+            </CardContent>
+          )}
+        </Card>
+
+        <Card>
+          <CardHeader 
+            className="pb-3 cursor-pointer hover:bg-muted/50 rounded-t-lg transition-colors"
+            onClick={() => setShowAdditionalHelp(!showAdditionalHelp)}
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  {showAdditionalHelp ? (
+                    <ChevronDown className="w-5 h-5" />
+                  ) : (
+                    <ChevronRight className="w-5 h-5" />
+                  )}
+                  Additional Help Needed
+                  {!showAdditionalHelp && issue?.additionalHelp && (
+                    <span className="text-xs bg-orange-100 text-orange-800 px-2 py-1 rounded">
+                      Has content
+                    </span>
+                  )}
+                </CardTitle>
+                <CardDescription>
+                  Areas requiring collaboration with Accounting department
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          {showAdditionalHelp && (
+            <CardContent>
+              <Textarea
+                name="additionalHelp"
+                placeholder="Describe any areas where assistance from the Accounting department is needed to resolve this issue."
+                defaultValue={issue?.additionalHelp || ""}
                 rows={3}
               />
             </CardContent>
