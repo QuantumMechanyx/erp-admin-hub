@@ -1,21 +1,10 @@
-import { useState } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import { 
   Calendar, 
   Users, 
   FileText, 
-  ChevronDown, 
-  ChevronRight, 
-  Clock, 
-  MessageSquare, 
-  AlertTriangle,
-  Plus,
-  CheckSquare,
-  Play,
-  Square
+  ChevronRight
 } from "lucide-react"
 import { getCurrentOrNextMeeting, getAvailableIssues } from "@/lib/meeting-actions"
 import { MeetingInterface } from "@/components/meeting-interface"

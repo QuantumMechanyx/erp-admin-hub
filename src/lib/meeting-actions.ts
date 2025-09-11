@@ -2,13 +2,7 @@
 
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
-import { z } from "zod"
 
-const CreateMeetingSchema = z.object({
-  title: z.string().min(1, "Meeting title is required"),
-  meetingDate: z.date(),
-  agenda: z.string().optional(),
-})
 
 export async function getCurrentOrNextMeeting() {
   try {
@@ -231,7 +225,7 @@ export async function addIssueToMeeting(meetingId: string, issueId: string) {
   }
 }
 
-export async function addMultipleIssuesToMeeting(prevState: any, formData: FormData) {
+export async function addMultipleIssuesToMeeting(prevState: unknown, formData: FormData) {
   try {
     const meetingId = formData.get("meetingId") as string
     const issueIds = formData.getAll("issueIds") as string[]

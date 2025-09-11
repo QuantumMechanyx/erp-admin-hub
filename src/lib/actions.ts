@@ -39,7 +39,7 @@ const CreateCmicNoteSchema = z.object({
   author: z.string().optional(),
 })
 
-export async function createIssue(prevState: any, formData: FormData) {
+export async function createIssue(prevState: unknown, formData: FormData) {
   console.log("🔧 createIssue called with formData:", {
     title: formData.get("title"),
     priority: formData.get("priority"),
@@ -100,7 +100,7 @@ export async function createIssue(prevState: any, formData: FormData) {
   }
 }
 
-export async function updateIssue(id: string, prevState: any, formData: FormData) {
+export async function updateIssue(id: string, prevState: unknown, formData: FormData) {
   const categoryId = formData.get("categoryId")
   const validatedFields = CreateIssueSchema.safeParse({
     title: formData.get("title"),
@@ -155,7 +155,7 @@ export async function deleteIssue(id: string) {
   }
 }
 
-export async function createCategory(prevState: any, formData: FormData) {
+export async function createCategory(prevState: unknown, formData: FormData) {
   const validatedFields = CreateCategorySchema.safeParse({
     name: formData.get("name"),
     description: formData.get("description"),
@@ -182,7 +182,7 @@ export async function createCategory(prevState: any, formData: FormData) {
   }
 }
 
-export async function createNote(prevState: any, formData: FormData) {
+export async function createNote(prevState: unknown, formData: FormData) {
   const validatedFields = CreateNoteSchema.safeParse({
     issueId: formData.get("issueId"),
     content: formData.get("content"),
@@ -209,7 +209,7 @@ export async function createNote(prevState: any, formData: FormData) {
   }
 }
 
-export async function createCmicNote(prevState: any, formData: FormData) {
+export async function createCmicNote(prevState: unknown, formData: FormData) {
   const validatedFields = CreateCmicNoteSchema.safeParse({
     issueId: formData.get("issueId"),
     content: formData.get("content"),
@@ -245,7 +245,7 @@ export async function createCmicNote(prevState: any, formData: FormData) {
 // Helper function to clean email content formatting
 function cleanEmailContent(content: string): string {
   // Remove email headers and signatures
-  let cleaned = content
+  const cleaned = content
     .replace(/^(From|To|Sent|Subject|Cc|Bcc):.*$/gm, '') // Remove email headers
     .replace(/^>.*$/gm, '') // Remove quoted text (replies)
     .replace(/^\s*-{2,}.*$/gm, '') // Remove signature separators

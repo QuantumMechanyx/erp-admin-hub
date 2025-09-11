@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useTransition, useCallback } from "react"
-import { useRouter } from "next/navigation"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -14,7 +13,7 @@ import {
   Play,
   Square
 } from "lucide-react"
-import { startMeeting, endMeeting, updateMeetingItemNotes } from "@/lib/meeting-actions"
+import { startMeeting, endMeeting } from "@/lib/meeting-actions"
 import { AddIssuesDialog } from "@/components/add-issues-dialog"
 
 type Meeting = {
@@ -42,11 +41,10 @@ type Meeting = {
 
 interface MeetingInterfaceProps {
   meeting: Meeting
-  availableIssues: any[]
+  availableIssues: unknown[]
 }
 
 export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceProps) {
-  const router = useRouter()
   const [isPending, startTransition] = useTransition()
   const [generalNotes, setGeneralNotes] = useState(meeting.generalNotes || "")
   const [externalHelp, setExternalHelp] = useState(meeting.externalHelp || "")
@@ -183,7 +181,7 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
                     <Badge variant="outline">{item.issue.category.name}</Badge>
                   )}
                   <div className="space-y-2 pt-2 border-t">
-                    <h5 className="font-medium text-xs text-muted-foreground">Today's Discussion:</h5>
+                    <h5 className="font-medium text-xs text-muted-foreground">Today&apos;s Discussion:</h5>
                     <Textarea
                       value={itemDiscussionNotes[item.issueId] || ""}
                       onChange={(e) => updateItemDiscussionNotes(item.issueId, e.target.value)}
@@ -205,7 +203,7 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
               Current Meeting Items
             </CardTitle>
             <CardDescription>
-              New items for today's discussion
+              New items for today&apos;s discussion
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -240,7 +238,7 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
               ))
             ) : (
               <div className="text-center py-8">
-                <p className="text-muted-foreground mb-4">No items in today's agenda yet</p>
+                <p className="text-muted-foreground mb-4">No items in today&apos;s agenda yet</p>
                 <Button variant="outline" onClick={openAddIssuesDialog}>
                   <Plus className="w-4 h-4 mr-2" />
                   Add Issues to Meeting
