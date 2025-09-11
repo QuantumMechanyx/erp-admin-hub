@@ -33,11 +33,10 @@ interface CmicTicketManagerProps {
 }
 
 export function CmicTicketManager({ issue, cmicNotes }: CmicTicketManagerProps) {
-  const [showAddTicket, setShowAddTicket] = useState(!issue.cmicTicketNumber)
   const [showAddNote, setShowAddNote] = useState(false)
   
   const [ticketState, updateTicketAction] = useActionState(
-    (prevState: any, formData: FormData) => updateIssue(issue.id, prevState, formData), 
+    (prevState: unknown, formData: FormData) => updateIssue(issue.id, prevState, formData), 
     { errors: {} }
   )
   const [noteState, addNoteAction] = useActionState(createCmicNote, { errors: {} })

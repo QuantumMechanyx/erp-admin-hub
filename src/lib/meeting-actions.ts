@@ -2,6 +2,7 @@
 
 import { db } from "@/lib/db"
 import { revalidatePath } from "next/cache"
+import { formatDateForMeetingTitle } from "@/lib/timezone"
 
 
 export async function getCurrentOrNextMeeting() {
@@ -16,7 +17,10 @@ export async function getCurrentOrNextMeeting() {
           include: {
             issue: {
               include: {
-                category: true
+                category: true,
+                additionalHelpNotes: {
+                  orderBy: { createdAt: "desc" }
+                }
               }
             }
           }
@@ -44,7 +48,10 @@ export async function getCurrentOrNextMeeting() {
             include: {
               issue: {
                 include: {
-                  category: true
+                  category: true,
+                  additionalHelpNotes: {
+                    orderBy: { createdAt: "desc" }
+                  }
                 }
               }
             }
@@ -76,7 +83,10 @@ export async function getCurrentOrNextMeeting() {
             include: {
               issue: {
                 include: {
-                  category: true
+                  category: true,
+                  additionalHelpNotes: {
+                    orderBy: { createdAt: "desc" }
+                  }
                 }
               }
             }
@@ -101,7 +111,7 @@ export async function createDefaultMeeting() {
   try {
     const meeting = await db.meeting.create({
       data: {
-        title: `ERP Team Meeting - ${new Date().toLocaleDateString()}`,
+        title: `ERP Team Meeting - ${formatDateForMeetingTitle()}`,
         meetingDate: new Date(),
         status: "PLANNED"
       },
@@ -110,7 +120,10 @@ export async function createDefaultMeeting() {
           include: {
             issue: {
               include: {
-                category: true
+                category: true,
+                additionalHelpNotes: {
+                  orderBy: { createdAt: "desc" }
+                }
               }
             }
           }
@@ -154,14 +167,18 @@ export async function addCarriedOverItems(meetingId: string) {
       item.issue.status === "OPEN" || item.issue.status === "IN_PROGRESS"
     )
 
-    // Add these items to the new meeting
+    // Add these items to the new meeting with preserved historical context
     for (const item of itemsToCarryOver) {
+      const historicalContext = item.discussionNotes 
+        ? `📝 Previous Discussion (${lastMeeting.title}):\n${item.discussionNotes}\n\n--- New Discussion ---\n`
+        : `📝 Carried over from ${lastMeeting.title}\n\n--- Discussion ---\n`
+
       await db.meetingItem.create({
         data: {
           meetingId,
           issueId: item.issueId,
           carriedOver: true,
-          discussionNotes: `Carried over from ${lastMeeting.title}`
+          discussionNotes: historicalContext
         }
       })
     }
@@ -205,6 +222,69 @@ export async function endMeeting(meetingId: string, generalNotes?: string, exter
   } catch (error) {
     console.error("Error ending meeting:", error)
     throw new Error("Failed to end meeting")
+  }
+}
+
+export async function endMeetingAndPrepareNext(meetingId: string, generalNotes?: string, externalHelp?: string) {
+  try {
+    // End the current meeting
+    await endMeeting(meetingId, generalNotes, externalHelp)
+    
+    // Create a new meeting for next week automatically
+    const nextWeek = new Date()
+    nextWeek.setDate(nextWeek.getDate() + 7)
+    
+    const newMeeting = await db.meeting.create({
+      data: {
+        title: `ERP Team Meeting - ${formatDateForMeetingTitle()}`,
+        meetingDate: nextWeek,
+        status: "PLANNED"
+      }
+    })
+
+    // Add carried over items automatically (with historical notes preserved)
+    await addCarriedOverItems(newMeeting.id)
+
+    revalidatePath("/meetings")
+    return newMeeting
+  } catch (error) {
+    console.error("Error ending meeting and preparing next:", error)
+    throw new Error("Failed to end meeting and prepare next")
+  }
+}
+
+export async function createNewMeetingManually(title: string, meetingDate: Date) {
+  try {
+    const newMeeting = await db.meeting.create({
+      data: {
+        title,
+        meetingDate,
+        status: "PLANNED"
+      },
+      include: {
+        meetingItems: {
+          include: {
+            issue: {
+              include: {
+                category: true,
+                additionalHelpNotes: {
+                  orderBy: { createdAt: "desc" }
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+
+    // Optionally add carried over items
+    await addCarriedOverItems(newMeeting.id)
+
+    revalidatePath("/meetings")
+    return newMeeting
+  } catch (error) {
+    console.error("Error creating new meeting manually:", error)
+    throw new Error("Failed to create new meeting")
   }
 }
 
@@ -285,6 +365,24 @@ export async function updateMeetingItemNotes(meetingId: string, issueId: string,
   }
 }
 
+export async function updateMeetingGeneralNotes(meetingId: string, generalNotes: string) {
+  try {
+    await db.meeting.update({
+      where: {
+        id: meetingId
+      },
+      data: {
+        generalNotes
+      }
+    })
+
+    revalidatePath("/meetings")
+  } catch (error) {
+    console.error("Error updating meeting general notes:", error)
+    throw new Error("Failed to update general notes")
+  }
+}
+
 export async function getAvailableIssues() {
   try {
     return await db.issue.findMany({
@@ -294,7 +392,10 @@ export async function getAvailableIssues() {
         }
       },
       include: {
-        category: true
+        category: true,
+        additionalHelpNotes: {
+          orderBy: { createdAt: "desc" }
+        }
       },
       orderBy: [
         { priority: "desc" },

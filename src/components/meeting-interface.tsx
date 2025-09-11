@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useCallback } from "react"
+import { useState, useCallback, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -9,9 +9,30 @@ import {
   Clock, 
   MessageSquare, 
   AlertTriangle,
-  Plus
+  Plus,
+  X,
+  ChevronDown,
+  ChevronRight,
+  Save,
+  Play,
+  Square
 } from "lucide-react"
 import { AddIssuesDialog } from "@/components/add-issues-dialog"
+import { AdditionalHelpNotes } from "@/components/additional-help-notes-simple"
+import { 
+  removeIssueFromMeeting, 
+  updateMeetingItemNotes, 
+  updateMeetingGeneralNotes,
+  startMeeting,
+  endMeetingAndPrepareNext
+} from "@/lib/meeting-actions"
+
+type AdditionalHelpNote = {
+  id: string
+  content: string
+  author?: string | null
+  createdAt: Date
+}
 
 type Meeting = {
   id: string
@@ -20,6 +41,7 @@ type Meeting = {
   status: "PLANNED" | "ACTIVE" | "COMPLETED"
   generalNotes?: string | null
   externalHelp?: string | null
+  startedAt?: Date | null
   meetingItems: {
     id: string
     issueId: string
@@ -30,6 +52,7 @@ type Meeting = {
       title: string
       description?: string | null
       additionalHelp?: string | null
+      additionalHelpNotes?: AdditionalHelpNote[]
       priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT"
       status: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED"
       category?: { name: string } | null
@@ -43,6 +66,15 @@ interface MeetingInterfaceProps {
 }
 
 export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceProps) {
+
+  const handleRemoveIssue = async (issueId: string) => {
+    try {
+      await removeIssueFromMeeting(meeting.id, issueId)
+      window.location.reload() // Simple refresh to update the UI
+    } catch (error) {
+      console.error("Failed to remove issue:", error)
+    }
+  }
   const [generalNotes, setGeneralNotes] = useState(meeting.generalNotes || "")
   const [itemDiscussionNotes, setItemDiscussionNotes] = useState<Record<string, string>>(
     Object.fromEntries(
@@ -50,6 +82,35 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
     )
   )
   const [showAddIssuesDialog, setShowAddIssuesDialog] = useState(false)
+  const [collapsedHelpNotes, setCollapsedHelpNotes] = useState<Record<string, boolean>>(
+    Object.fromEntries(
+      meeting.meetingItems.map(item => [item.issue.id, true]) // Default to collapsed
+    )
+  )
+  
+  // Meeting auto-end timers and settings
+  const [lastActivity, setLastActivity] = useState(Date.now())
+  const [inactivityTimer, setInactivityTimer] = useState<NodeJS.Timeout | null>(null)
+  const [isWarningShown, setIsWarningShown] = useState(false)
+  const [currentTime, setCurrentTime] = useState(Date.now())
+  
+  // Configurable meeting timeouts - easily adjustable for different meeting types
+  const MEETING_CONFIG = {
+    // Inactivity timeouts
+    INACTIVITY_WARNING_MINUTES: 15,     // Show warning after this many minutes of inactivity
+    INACTIVITY_AUTO_END_MINUTES: 20,    // Auto-end meeting after this many minutes of inactivity
+    
+    // Maximum meeting duration
+    MAX_MEETING_MINUTES: 90,            // Maximum meeting length before auto-end
+    
+    // Timer check intervals
+    ACTIVITY_CHECK_INTERVAL_MS: 60000,  // Check activity every minute
+  }
+  
+  // Convert to milliseconds for internal use
+  const INACTIVITY_WARNING_TIME = MEETING_CONFIG.INACTIVITY_WARNING_MINUTES * 60 * 1000
+  const INACTIVITY_AUTO_END_TIME = MEETING_CONFIG.INACTIVITY_AUTO_END_MINUTES * 60 * 1000
+  const MAX_MEETING_TIME = MEETING_CONFIG.MAX_MEETING_MINUTES * 60 * 1000
 
   const openAddIssuesDialog = () => {
     setShowAddIssuesDialog(true)
@@ -61,9 +122,6 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
 
   const formatText = (text: string) => {
     return text
-      .replace(/^- (.+)$/gm, '• $1')  // Convert "- item" to "• item"
-      .replace(/^\* (.+)$/gm, '• $1')  // Convert "* item" to "• item"
-      .replace(/^(\d+)\. (.+)$/gm, '$1. $2')  // Keep numbered lists as is
   }
 
   const updateItemDiscussionNotes = (itemId: string, notes: string) => {
@@ -79,7 +137,218 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
     setGeneralNotes(formattedNotes)
   }
 
+  const saveGeneralNotes = async () => {
+    try {
+      await updateMeetingGeneralNotes(meeting.id, generalNotes)
+      console.log("General notes saved successfully")
+    } catch (error) {
+      console.error("Failed to save general notes:", error)
+    }
+  }
 
+  const saveDiscussionNotes = async (issueId: string, notes: string) => {
+    try {
+      await updateMeetingItemNotes(meeting.id, issueId, notes)
+      console.log("Discussion notes saved successfully for issue:", issueId)
+    } catch (error) {
+      console.error("Failed to save discussion notes:", error)
+    }
+  }
+
+  const saveAllNotes = async () => {
+    try {
+      // Save general notes
+      await updateMeetingGeneralNotes(meeting.id, generalNotes)
+      
+      // Save all discussion notes
+      for (const [issueId, notes] of Object.entries(itemDiscussionNotes)) {
+        if (notes.trim()) {
+          await updateMeetingItemNotes(meeting.id, issueId, notes)
+        }
+      }
+      
+      console.log("All notes saved successfully")
+    } catch (error) {
+      console.error("Failed to save notes:", error)
+    }
+  }
+
+  const handleStartMeeting = async () => {
+    try {
+      await startMeeting(meeting.id)
+      window.location.reload() // Refresh to show updated status
+    } catch (error) {
+      console.error("Failed to start meeting:", error)
+    }
+  }
+
+  const handleEndMeeting = async (reason?: string) => {
+    const confirmMessage = reason 
+      ? `The meeting will be automatically ended due to ${reason}. All notes will be saved and the next meeting will be prepared.`
+      : "Are you sure you want to end this meeting? This will save all notes and prepare the next meeting with carried-over items."
+    
+    if (reason || confirm(confirmMessage)) {
+      try {
+        // Save current notes first
+        await saveAllNotes()
+        
+        // End meeting and prepare next
+        const endNote = reason 
+          ? `${generalNotes}\n\n--- Meeting ended automatically due to ${reason} ---`
+          : generalNotes
+          
+        await endMeetingAndPrepareNext(meeting.id, endNote)
+        
+        console.log(`Meeting ended${reason ? ` (${reason})` : ""} and next meeting prepared successfully`)
+        window.location.reload() // Refresh to show new meeting
+      } catch (error) {
+        console.error("Failed to end meeting:", error)
+      }
+    }
+  }
+
+  // Activity tracking functions
+  const updateActivity = useCallback(() => {
+    setLastActivity(Date.now())
+    setIsWarningShown(false)
+    
+    // Clear any existing inactivity timer
+    if (inactivityTimer) {
+      clearTimeout(inactivityTimer)
+    }
+    
+    // Only set timers if meeting is active
+    if (meeting.status === "ACTIVE") {
+      // Set new inactivity timer
+      const newTimer = setTimeout(() => {
+        const now = Date.now()
+        const timeSinceActivity = now - Date.now() // This will be updated by the closure
+        
+        if (timeSinceActivity >= INACTIVITY_AUTO_END_TIME) {
+          handleEndMeeting("inactivity (20+ minutes with no activity)")
+        } else if (timeSinceActivity >= INACTIVITY_WARNING_TIME) {
+          setIsWarningShown(true)
+          const remainingTime = Math.ceil((INACTIVITY_AUTO_END_TIME - timeSinceActivity) / 60000)
+          
+          if (confirm(`Meeting has been inactive for 15 minutes. The meeting will automatically end in ${remainingTime} minutes unless there is activity. Continue meeting?`)) {
+            // User wants to continue - this will trigger a new activity update
+            setLastActivity(Date.now())
+            setIsWarningShown(false)
+          }
+        }
+      }, INACTIVITY_WARNING_TIME)
+      
+      setInactivityTimer(newTimer)
+    }
+  }, [meeting.status, inactivityTimer, INACTIVITY_WARNING_TIME, INACTIVITY_AUTO_END_TIME, handleEndMeeting])
+
+
+  const checkMaxMeetingTime = useCallback(() => {
+    if (meeting.status === "ACTIVE" && meeting.startedAt) {
+      const meetingDuration = Date.now() - new Date(meeting.startedAt).getTime()
+      
+      if (meetingDuration >= MAX_MEETING_TIME) {
+        handleEndMeeting("maximum meeting time reached (90 minutes)")
+      }
+    }
+  }, [meeting.status, meeting.startedAt, MAX_MEETING_TIME])
+
+  // Helper function to format meeting duration
+  const formatMeetingDuration = (startTime: Date, currentTime: number) => {
+    const duration = currentTime - startTime.getTime()
+    const minutes = Math.floor(duration / 60000)
+    const hours = Math.floor(minutes / 60)
+    const remainingMinutes = minutes % 60
+    
+    if (hours > 0) {
+      return `${hours}h ${remainingMinutes}m`
+    }
+    return `${remainingMinutes}m`
+  }
+
+  // Timer update for live meeting duration display
+  useEffect(() => {
+    if (meeting.status === "ACTIVE" && meeting.startedAt) {
+      const interval = setInterval(() => {
+        setCurrentTime(Date.now())
+      }, 1000) // Update every second for live timer
+
+      return () => clearInterval(interval)
+    }
+  }, [meeting.status, meeting.startedAt])
+
+  // Auto-save with debouncing
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      saveGeneralNotes()
+    }, 2000) // Auto-save after 2 seconds of inactivity
+
+    return () => clearTimeout(timeoutId)
+  }, [generalNotes, meeting.id])
+
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      Object.entries(itemDiscussionNotes).forEach(([issueId, notes]) => {
+        if (notes.trim()) {
+          saveDiscussionNotes(issueId, notes)
+        }
+      })
+    }, 2000) // Auto-save after 2 seconds of inactivity
+
+    return () => clearTimeout(timeoutId)
+  }, [itemDiscussionNotes, meeting.id])
+
+  // Activity tracking and meeting auto-end functionality
+  useEffect(() => {
+    if (meeting.status !== "ACTIVE") return
+
+    // Set up activity listeners to track user interaction
+    const activityEvents = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart']
+    
+    activityEvents.forEach(event => {
+      document.addEventListener(event, updateActivity, true)
+    })
+
+    // Initial activity timer setup
+    updateActivity()
+
+    // Set up max meeting time checker
+    const maxTimeInterval = setInterval(checkMaxMeetingTime, MEETING_CONFIG.ACTIVITY_CHECK_INTERVAL_MS)
+
+    // Clean up listeners and timers
+    return () => {
+      activityEvents.forEach(event => {
+        document.removeEventListener(event, updateActivity, true)
+      })
+      
+      if (inactivityTimer) {
+        clearTimeout(inactivityTimer)
+      }
+      
+      clearInterval(maxTimeInterval)
+    }
+  }, [meeting.status, updateActivity, checkMaxMeetingTime, inactivityTimer])
+
+  // Window close detection to auto-end meeting
+  useEffect(() => {
+    if (meeting.status !== "ACTIVE") return
+
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Try to end meeting gracefully on window close
+      handleEndMeeting("browser window closed")
+      
+      // Show confirmation dialog to user
+      e.preventDefault()
+      e.returnValue = "The meeting is still active. Are you sure you want to close? This will automatically end the meeting."
+      return e.returnValue
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [meeting.status])
 
   const priorityColors = {
     LOW: "bg-gray-100 text-gray-800",
@@ -103,14 +372,48 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
       {/* Meeting Header */}
       <Card>
         <CardHeader>
-          <CardTitle>{meeting.title}</CardTitle>
-          <CardDescription>
-            Live note-taking workspace for team discussions
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>{meeting.title}</CardTitle>
+              <CardDescription>
+                Live note-taking workspace for team discussions
+                {meeting.status === "ACTIVE" && meeting.startedAt && (
+                  <div className="mt-2 flex items-center gap-4 text-sm">
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-4 h-4" />
+                      <span>Meeting duration: {formatMeetingDuration(new Date(meeting.startedAt), currentTime)}</span>
+                    </div>
+                    <div className="text-muted-foreground">
+                      Auto-end: {MEETING_CONFIG.MAX_MEETING_MINUTES}min max | {MEETING_CONFIG.INACTIVITY_AUTO_END_MINUTES}min inactivity
+                    </div>
+                  </div>
+                )}
+              </CardDescription>
+            </div>
+            <div className="flex gap-2">
+              {meeting.status === "PLANNED" && (
+                <Button onClick={handleStartMeeting} variant="default">
+                  <Play className="w-4 h-4 mr-2" />
+                  Start Meeting
+                </Button>
+              )}
+              {meeting.status === "ACTIVE" && (
+                <Button onClick={handleEndMeeting} variant="destructive">
+                  <Square className="w-4 h-4 mr-2" />
+                  End Meeting
+                </Button>
+              )}
+              {meeting.status === "COMPLETED" && (
+                <Badge variant="secondary" className="text-sm px-3 py-1">
+                  Meeting Completed
+                </Badge>
+              )}
+            </div>
+          </div>
         </CardHeader>
       </Card>
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="space-y-6">
         {/* Carried Over Items */}
         {carriedOverItems.length > 0 && (
           <Card>
@@ -123,31 +426,66 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
                 Items still in progress from last meeting
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {carriedOverItems.map((item) => (
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {carriedOverItems.map((item) => (
                 <div key={item.id} className="border rounded-lg p-4 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <h4 className="font-medium">{item.issue.title}</h4>
-                    <div className="flex gap-1">
+                    <div className="flex gap-1 items-center">
                       <Badge className={priorityColors[item.issue.priority]} variant="outline">
                         {item.issue.priority}
                       </Badge>
                       <Badge className={statusColors[item.issue.status]} variant="outline">
-                        {item.issue.status.replace("_", " ")}
+                        {item.issue.status.replaceAll("_", " ")}
                       </Badge>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => handleRemoveIssue(item.issueId)}
+                        className="h-6 w-6 p-0 hover:bg-red-50"
+                        title="Remove from meeting"
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
                     </div>
                   </div>
                   <p className="text-sm text-muted-foreground">{item.issue.description}</p>
                   {item.issue.category && (
                     <Badge variant="outline">{item.issue.category.name}</Badge>
                   )}
-                  {item.issue.additionalHelp && (
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 text-orange-600" />
-                        <h6 className="font-medium text-xs text-orange-900">Additional Help Needed:</h6>
+                  {item.issue.additionalHelpNotes && item.issue.additionalHelpNotes.length > 0 && (
+                    <div className="border rounded-lg">
+                      <div className="flex items-center justify-between p-3 pb-2">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="w-4 h-4 text-orange-600" />
+                          <h6 className="text-sm font-medium">Additional Help Needed</h6>
+                          <Badge variant="secondary" className="text-xs">{item.issue.additionalHelpNotes.length}</Badge>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setCollapsedHelpNotes(prev => ({
+                            ...prev,
+                            [item.issue.id]: !prev[item.issue.id]
+                          }))}
+                          className="p-1 h-6 w-6"
+                        >
+                          {collapsedHelpNotes[item.issue.id] ? (
+                            <ChevronRight className="w-3 h-3" />
+                          ) : (
+                            <ChevronDown className="w-3 h-3" />
+                          )}
+                        </Button>
                       </div>
-                      <p className="text-xs text-orange-800 whitespace-pre-wrap">{item.issue.additionalHelp}</p>
+                      {!collapsedHelpNotes[item.issue.id] && (
+                        <div className="px-3 pb-3">
+                          <AdditionalHelpNotes 
+                            issueId={item.issue.id} 
+                            notes={item.issue.additionalHelpNotes || []}
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
                   <div className="space-y-2 pt-2 border-t">
@@ -161,6 +499,7 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
                   </div>
                 </div>
               ))}
+              </div>
             </CardContent>
           </Card>
         )}
@@ -184,45 +523,81 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
               </Button>
             </div>
           </CardHeader>
-          <CardContent className="space-y-4">
-{currentItems.length > 0 ? (
-              currentItems.map((item) => (
-                <div key={item.id} className="border rounded-lg p-4 space-y-2">
-                  <div className="flex items-start justify-between gap-2">
-                    <h4 className="font-medium">{item.issue.title}</h4>
-                    <div className="flex gap-1">
-                      <Badge className={priorityColors[item.issue.priority]} variant="outline">
-                        {item.issue.priority}
-                      </Badge>
-                      <Badge className={statusColors[item.issue.status]} variant="outline">
-                        {item.issue.status.replace("_", " ")}
-                      </Badge>
-                    </div>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{item.issue.description}</p>
-                  {item.issue.category && (
-                    <Badge variant="outline">{item.issue.category.name}</Badge>
-                  )}
-                  {item.issue.additionalHelp && (
-                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 space-y-1">
-                      <div className="flex items-center gap-2">
-                        <AlertTriangle className="w-4 h-4 text-orange-600" />
-                        <h6 className="font-medium text-xs text-orange-900">Additional Help Needed:</h6>
+          <CardContent>
+            {currentItems.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {currentItems.map((item) => (
+                  <div key={item.id} className="border rounded-lg p-4 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <h4 className="font-medium">{item.issue.title}</h4>
+                      <div className="flex gap-1 items-center">
+                        <Badge className={priorityColors[item.issue.priority]} variant="outline">
+                          {item.issue.priority}
+                        </Badge>
+                        <Badge className={statusColors[item.issue.status]} variant="outline">
+                          {item.issue.status.replaceAll("_", " ")}
+                        </Badge>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveIssue(item.issueId)}
+                          className="h-6 w-6 p-0 hover:bg-red-50"
+                          title="Remove from meeting"
+                        >
+                          <X className="h-3 w-3" />
+                        </Button>
                       </div>
-                      <p className="text-xs text-orange-800 whitespace-pre-wrap">{item.issue.additionalHelp}</p>
                     </div>
-                  )}
-                  <div className="space-y-2 pt-2 border-t">
-                    <h5 className="font-medium text-xs text-muted-foreground">Discussion Notes:</h5>
-                    <Textarea
-                      value={itemDiscussionNotes[item.issueId] || ""}
-                      onChange={(e) => updateItemDiscussionNotes(item.issueId, e.target.value)}
-                      placeholder="Add discussion notes for this item..."
-                      className="min-h-[60px] text-sm"
-                    />
+                    <p className="text-sm text-muted-foreground">{item.issue.description}</p>
+                    {item.issue.category && (
+                      <Badge variant="outline">{item.issue.category.name}</Badge>
+                    )}
+                    {item.issue.additionalHelpNotes && item.issue.additionalHelpNotes.length > 0 && (
+                      <div className="border rounded-lg">
+                        <div className="flex items-center justify-between p-3 pb-2">
+                          <div className="flex items-center gap-2">
+                            <AlertTriangle className="w-4 h-4 text-orange-600" />
+                            <h6 className="text-sm font-medium">Additional Help Needed</h6>
+                            <Badge variant="secondary" className="text-xs">{item.issue.additionalHelpNotes.length}</Badge>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setCollapsedHelpNotes(prev => ({
+                              ...prev,
+                              [item.issue.id]: !prev[item.issue.id]
+                            }))}
+                            className="p-1 h-6 w-6"
+                          >
+                            {collapsedHelpNotes[item.issue.id] ? (
+                              <ChevronRight className="w-3 h-3" />
+                            ) : (
+                              <ChevronDown className="w-3 h-3" />
+                            )}
+                          </Button>
+                        </div>
+                        {!collapsedHelpNotes[item.issue.id] && (
+                          <div className="px-3 pb-3">
+                            <AdditionalHelpNotes 
+                              issueId={item.issue.id} 
+                              notes={item.issue.additionalHelpNotes || []}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    <div className="space-y-2 pt-2 border-t">
+                      <h5 className="font-medium text-xs text-muted-foreground">Discussion Notes:</h5>
+                      <Textarea
+                        value={itemDiscussionNotes[item.issueId] || ""}
+                        onChange={(e) => updateItemDiscussionNotes(item.issueId, e.target.value)}
+                        placeholder="Add discussion notes for this item..."
+                        className="min-h-[60px] text-sm"
+                      />
+                    </div>
                   </div>
-                </div>
-              ))
+                ))}
+              </div>
             ) : (
               <div className="text-center py-8">
                 <p className="text-muted-foreground">No items in today&apos;s agenda yet</p>
@@ -236,13 +611,21 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
       {/* General Meeting Notes */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <MessageSquare className="w-5 h-5" />
-            General Meeting Notes
-          </CardTitle>
-          <CardDescription>
-            Additional notes, action items, and decisions made
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare className="w-5 h-5" />
+                General Meeting Notes
+              </CardTitle>
+              <CardDescription>
+                Additional notes, action items, and decisions made
+              </CardDescription>
+            </div>
+            <Button onClick={saveAllNotes} variant="outline" size="sm">
+              <Save className="w-4 h-4 mr-2" />
+              Save All Notes
+            </Button>
+          </div>
         </CardHeader>
         <CardContent>
           <Textarea

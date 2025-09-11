@@ -40,6 +40,12 @@ const CreateCmicNoteSchema = z.object({
   author: z.string().optional(),
 })
 
+const CreateAdditionalHelpNoteSchema = z.object({
+  issueId: z.string(),
+  content: z.string().min(1, "Note content is required"),
+  author: z.string().optional(),
+})
+
 export async function createIssue(prevState: unknown, formData: FormData) {
   console.log("🔧 createIssue called with formData:", {
     title: formData.get("title"),
@@ -245,6 +251,50 @@ export async function createCmicNote(prevState: unknown, formData: FormData) {
   }
 }
 
+export async function createAdditionalHelpNote(prevState: unknown, formData: FormData) {
+  const validatedFields = CreateAdditionalHelpNoteSchema.safeParse({
+    issueId: formData.get("issueId"),
+    content: formData.get("content"),
+    author: formData.get("author"),
+  })
+
+  if (!validatedFields.success) {
+    return {
+      errors: validatedFields.error.flatten().fieldErrors,
+    }
+  }
+
+  try {
+    const additionalHelpNote = await db.additionalHelpNote.create({
+      data: validatedFields.data,
+    })
+
+    revalidatePath(`/dashboard/${validatedFields.data.issueId}`)
+    revalidatePath("/meetings")
+    return { success: true, additionalHelpNote }
+  } catch (error) {
+    return {
+      errors: { _form: ["Failed to create Additional Help note"] },
+    }
+  }
+}
+
+export async function deleteAdditionalHelpNote(noteId: string, issueId: string) {
+  try {
+    await db.additionalHelpNote.delete({
+      where: { id: noteId },
+    })
+
+    revalidatePath(`/dashboard/${issueId}`)
+    revalidatePath("/meetings")
+    return { success: true }
+  } catch (error) {
+    return {
+      errors: { _form: ["Failed to delete Additional Help note"] },
+    }
+  }
+}
+
 // Helper function to clean email content formatting
 function cleanEmailContent(content: string): string {
   // Remove email headers and signatures
@@ -329,6 +379,9 @@ export async function getIssue(id: string) {
           orderBy: { createdAt: "desc" },
         },
         cmicNotes: {
+          orderBy: { createdAt: "desc" },
+        },
+        additionalHelpNotes: {
           orderBy: { createdAt: "desc" },
         },
       },

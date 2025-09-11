@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -14,29 +8,29 @@ datasource db {
 }
 
 model Issue {
-  id                String    @id @default(cuid())
-  title             String
-  description       String?
-  resolutionPlan    String?
-  workPerformed     String?
-  roadblocks        String?
-  usersInvolved     String?
-  additionalHelp    String?
-  priority          Priority  @default(MEDIUM)
-  status            Status    @default(OPEN)
-  categoryId        String?
-  assignedTo        String?
-  cmicTicketNumber  String?
-  cmicTicketOpened  DateTime?
-  cmicTicketClosed  Boolean   @default(false)
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  category     Category?     @relation(fields: [categoryId], references: [id])
-  notes        Note[]
-  cmicNotes    CmicNote[]
-  meetingItems MeetingItem[]
-  emailIssues  EmailIssue[]
+  id                  String               @id @default(cuid())
+  title               String
+  description         String?
+  priority            Priority             @default(MEDIUM)
+  status              Status               @default(OPEN)
+  assignedTo          String?
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  categoryId          String?
+  resolutionPlan      String?
+  roadblocks          String?
+  usersInvolved       String?
+  workPerformed       String?
+  cmicTicketClosed    Boolean              @default(false)
+  cmicTicketNumber    String?
+  cmicTicketOpened    DateTime?
+  additionalHelp      String?
+  additionalHelpNotes AdditionalHelpNote[]
+  cmicNotes           CmicNote[]
+  emailIssues         EmailIssue[]
+  category            Category?            @relation(fields: [categoryId], references: [id])
+  meetingItems        MeetingItem[]
+  notes               Note[]
 
   @@map("issues")
 }
@@ -47,8 +41,7 @@ model CmicNote {
   content   String
   author    String?
   createdAt DateTime @default(now())
-
-  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
 
   @@map("cmic_notes")
 }
@@ -60,8 +53,7 @@ model Category {
   color       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-
-  issues Issue[]
+  issues      Issue[]
 
   @@map("categories")
 }
@@ -72,27 +64,36 @@ model Note {
   content   String
   author    String?
   createdAt DateTime @default(now())
-
-  issue Issue @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
 
   @@map("notes")
 }
 
+model AdditionalHelpNote {
+  id        String   @id @default(cuid())
+  issueId   String
+  content   String
+  author    String?
+  createdAt DateTime @default(now())
+  issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  @@map("additional_help_notes")
+}
+
 model Meeting {
-  id           String      @id @default(cuid())
+  id           String        @id @default(cuid())
   title        String
   meetingDate  DateTime
   agenda       String?
   minutes      String?
   actionItems  String?
-  status       MeetingStatus @default(PLANNED)
-  startedAt    DateTime?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
   endedAt      DateTime?
-  generalNotes String?
   externalHelp String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
+  generalNotes String?
+  startedAt    DateTime?
+  status       MeetingStatus @default(PLANNED)
   meetingItems MeetingItem[]
 
   @@map("meetings")
@@ -104,36 +105,33 @@ model MeetingItem {
   issueId         String
   discussionNotes String?
   actionItems     String?
-  carriedOver     Boolean  @default(false)
   addedAt         DateTime @default(now())
-
-  meeting Meeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
-  issue   Issue   @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  carriedOver     Boolean  @default(false)
+  issue           Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  meeting         Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
 
   @@unique([meetingId, issueId])
   @@map("meeting_items")
 }
 
 model EmailDraft {
-  id        String   @id @default(cuid())
-  subject   String
-  content   String
-  sentAt    DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
+  id          String       @id @default(cuid())
+  subject     String
+  content     String
+  sentAt      DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
   emailIssues EmailIssue[]
 
   @@map("email_drafts")
 }
 
 model EmailIssue {
-  id           String @id @default(cuid())
+  id           String     @id @default(cuid())
   emailDraftId String
   issueId      String
-
-  emailDraft EmailDraft @relation(fields: [emailDraftId], references: [id], onDelete: Cascade)
-  issue      Issue      @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  emailDraft   EmailDraft @relation(fields: [emailDraftId], references: [id], onDelete: Cascade)
+  issue        Issue      @relation(fields: [issueId], references: [id], onDelete: Cascade)
 
   @@unique([emailDraftId, issueId])
   @@map("email_issues")

@@ -80,7 +80,7 @@ export default async function Dashboard() {
           <CollapsibleContent>
             <CardContent>
               <Suspense fallback={<div>Loading resolved issues...</div>}>
-                <IssuesList issues={resolvedIssues} categories={categories} />
+                <IssuesList issues={resolvedIssues} categories={categories} showCreateButton={false} />
               </Suspense>
             </CardContent>
           </CollapsibleContent>

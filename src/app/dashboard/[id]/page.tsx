@@ -7,6 +7,7 @@ import { getIssue } from "@/lib/actions"
 import { IssueNotes } from "@/components/issue-notes"
 import { IssueActions } from "@/components/issue-actions"
 import { CmicTicketManager } from "@/components/cmic-ticket-manager"
+import { AdditionalHelpNotes } from "@/components/additional-help-notes-simple"
 import Link from "next/link"
 import { ArrowLeft, Edit, Calendar, User, AlertTriangle, ChevronDown } from "lucide-react"
 import { formatDistanceToNow, format } from "date-fns"
@@ -180,6 +181,7 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
 
         <div className="space-y-6">
           <CmicTicketManager issue={issue} cmicNotes={issue.cmicNotes} />
+          <AdditionalHelpNotes issueId={issue.id} notes={issue.additionalHelpNotes} />
           <IssueNotes issueId={issue.id} notes={issue.notes} />
           <IssueActions issue={issue} />
         </div>

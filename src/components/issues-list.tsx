@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { MessageSquare, User, Calendar, Filter } from "lucide-react"
-import { formatDistanceToNow } from "date-fns"
+import { formatDistanceToNowPacific } from "@/lib/timezone"
 
 type Issue = {
   id: string
@@ -33,6 +33,7 @@ type Category = {
 interface IssuesListProps {
   issues: Issue[]
   categories: Category[]
+  showCreateButton?: boolean
 }
 
 const priorityColors = {
@@ -49,7 +50,7 @@ const statusColors = {
   CLOSED: "bg-gray-100 text-gray-800"
 }
 
-export function IssuesList({ issues, categories }: IssuesListProps) {
+export function IssuesList({ issues, categories, showCreateButton = true }: IssuesListProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [priorityFilter, setPriorityFilter] = useState<string>("all")
@@ -69,9 +70,11 @@ export function IssuesList({ issues, categories }: IssuesListProps) {
     return (
       <div className="text-center py-8">
         <p className="text-muted-foreground mb-4">No issues found</p>
-        <Button asChild>
-          <Link href="/dashboard/new">Create your first issue</Link>
-        </Button>
+        {showCreateButton && (
+          <Button asChild>
+            <Link href="/dashboard/new">Create your first issue</Link>
+          </Button>
+        )}
       </div>
     )
   }
@@ -181,7 +184,7 @@ export function IssuesList({ issues, categories }: IssuesListProps) {
                   </div>
                   <div className="flex items-center gap-1">
                     <Calendar className="w-4 h-4" />
-                    Updated {formatDistanceToNow(new Date(issue.updatedAt), { addSuffix: true })}
+                    Updated {formatDistanceToNowPacific(issue.updatedAt)}
                   </div>
                 </div>
                 <Button variant="outline" size="sm" asChild>

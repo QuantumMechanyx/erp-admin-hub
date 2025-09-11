@@ -9,6 +9,8 @@ import {
 import { getCurrentOrNextMeeting, getAvailableIssues } from "@/lib/meeting-actions"
 import { MeetingInterface } from "@/components/meeting-interface"
 
+export const revalidate = 0
+
 export default async function MeetingsPage() {
   const [meeting, availableIssues] = await Promise.all([
     getCurrentOrNextMeeting(),
@@ -17,22 +19,6 @@ export default async function MeetingsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">ERP Team Meeting Interface</h1>
-          <p className="text-muted-foreground">
-            Live meeting discussion and collaboration workspace
-          </p>
-        </div>
-        <div className="text-sm text-muted-foreground">
-          {new Date().toLocaleDateString('en-US', { 
-            weekday: 'long',
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          })}
-        </div>
-      </div>
 
       <MeetingInterface meeting={meeting} availableIssues={availableIssues} />
 

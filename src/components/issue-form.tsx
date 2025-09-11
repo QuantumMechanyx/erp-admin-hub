@@ -55,7 +55,7 @@ export function IssueForm({ categories, issue, isEditing = false }: IssueFormPro
   const [showCmicTicket, setShowCmicTicket] = useState(isEditing && !!issue?.cmicTicketNumber)
 
   const action = isEditing && issue 
-    ? (prevState: any, formData: FormData) => updateIssue(issue.id, prevState, formData)
+    ? (prevState: unknown, formData: FormData) => updateIssue(issue.id, prevState, formData)
     : createIssue
 
   const [state, formAction, isPending] = useActionState(action, { errors: {} })
