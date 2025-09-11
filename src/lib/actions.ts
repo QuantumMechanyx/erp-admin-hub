@@ -260,6 +260,11 @@ function cleanEmailContent(content: string): string {
 export async function getIssues() {
   try {
     const issues = await db.issue.findMany({
+      where: {
+        status: {
+          in: ["OPEN", "IN_PROGRESS"]
+        }
+      },
       include: {
         category: true,
         notes: {
