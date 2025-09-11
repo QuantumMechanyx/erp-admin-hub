@@ -7,6 +7,8 @@ import { getIssues, getCategories } from "@/lib/actions"
 import { IssuesList } from "@/components/issues-list"
 import { DashboardStats } from "@/components/dashboard-stats"
 
+export const revalidate = 0
+
 export default async function Dashboard() {
   const [issues, categories] = await Promise.all([
     getIssues(),
