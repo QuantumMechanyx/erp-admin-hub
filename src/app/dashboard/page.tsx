@@ -1,17 +1,19 @@
 import { Suspense } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Plus } from "lucide-react"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { Plus, ChevronDown } from "lucide-react"
 import Link from "next/link"
-import { getIssues, getCategories } from "@/lib/actions"
+import { getIssues, getResolvedIssues, getCategories } from "@/lib/actions"
 import { IssuesList } from "@/components/issues-list"
 import { DashboardStats } from "@/components/dashboard-stats"
 
 export const revalidate = 0
 
 export default async function Dashboard() {
-  const [issues, categories] = await Promise.all([
+  const [issues, resolvedIssues, categories] = await Promise.all([
     getIssues(),
+    getResolvedIssues(),
     getCategories()
   ])
 
@@ -56,6 +58,34 @@ export default async function Dashboard() {
           </Suspense>
         </CardContent>
       </Card>
+
+      <Collapsible defaultOpen={false}>
+        <Card>
+          <CollapsibleTrigger asChild>
+            <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors">
+              <CardTitle className="flex items-center justify-between">
+                <span>Resolved Issues</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-normal text-muted-foreground">
+                    {resolvedIssues.length} resolved
+                  </span>
+                  <ChevronDown className="w-4 h-4" />
+                </div>
+              </CardTitle>
+              <CardDescription>
+                Previously resolved and closed ERP issues
+              </CardDescription>
+            </CardHeader>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <CardContent>
+              <Suspense fallback={<div>Loading resolved issues...</div>}>
+                <IssuesList issues={resolvedIssues} categories={categories} />
+              </Suspense>
+            </CardContent>
+          </CollapsibleContent>
+        </Card>
+      </Collapsible>
     </div>
   )
 }

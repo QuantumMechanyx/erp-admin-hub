@@ -287,6 +287,35 @@ export async function getIssues() {
   }
 }
 
+export async function getResolvedIssues() {
+  try {
+    const issues = await db.issue.findMany({
+      where: {
+        status: {
+          in: ["RESOLVED", "CLOSED"]
+        }
+      },
+      include: {
+        category: true,
+        notes: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+        _count: {
+          select: { notes: true },
+        },
+      },
+      orderBy: [
+        { updatedAt: "desc" },
+      ],
+    })
+
+    return issues
+  } catch (error) {
+    return []
+  }
+}
+
 export async function getIssue(id: string) {
   try {
     const issue = await db.issue.findUnique({
