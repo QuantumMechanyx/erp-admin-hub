@@ -5,6 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Badge } from "@/components/ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Label } from "@/components/ui/label"
 import { 
   Clock, 
   MessageSquare, 
@@ -44,6 +46,7 @@ interface MeetingInterfaceProps {
 export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceProps) {
   const [generalNotes, setGeneralNotes] = useState(meeting.generalNotes || "")
   const [externalHelp, setExternalHelp] = useState(meeting.externalHelp || "")
+  const [externalHelpIssueId, setExternalHelpIssueId] = useState<string>("")
   const [itemDiscussionNotes, setItemDiscussionNotes] = useState<Record<string, string>>(
     Object.fromEntries(
       meeting.meetingItems.map(item => [item.issueId, item.discussionNotes || ""])
@@ -225,13 +228,38 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
             Areas requiring collaboration with Accounting
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Textarea
-            value={externalHelp}
-            onChange={(e) => updateExternalHelp(e.target.value)}
-            placeholder="Add requests for assistance from Accounting department..."
-            className="min-h-[100px]"
-          />
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="external-help-issue">Related Issue (Optional)</Label>
+            <Select value={externalHelpIssueId} onValueChange={setExternalHelpIssueId}>
+              <SelectTrigger>
+                <SelectValue placeholder="Select an issue that needs external help..." />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">No specific issue</SelectItem>
+                {availableIssues.map((issue: any) => (
+                  <SelectItem key={issue.id} value={issue.id}>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">
+                        {issue.priority}
+                      </Badge>
+                      <span className="truncate">{issue.title}</span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="external-help-notes">Help Request Details</Label>
+            <Textarea
+              id="external-help-notes"
+              value={externalHelp}
+              onChange={(e) => updateExternalHelp(e.target.value)}
+              placeholder="Add requests for assistance from Accounting department..."
+              className="min-h-[100px]"
+            />
+          </div>
         </CardContent>
       </Card>
 
