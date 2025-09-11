@@ -4,7 +4,8 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
-import { EyeOff, Eye } from "lucide-react"
+import { EyeOff, Eye, LogOut, User } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
 
 const navigation = [
   {
@@ -33,6 +34,7 @@ export function Navigation() {
   const pathname = usePathname()
   const [isHidden, setIsHidden] = useState(false)
   const isMeetingPage = pathname === "/meetings"
+  const { user, logout, isAuthenticated } = useAuth()
 
   if (isHidden) {
     return (
@@ -76,17 +78,36 @@ export function Navigation() {
               ))}
             </nav>
           </div>
-          {isMeetingPage && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsHidden(true)}
-              className="p-2"
-              title="Hide navigation for presentation"
-            >
-              <EyeOff className="w-4 h-4" />
-            </Button>
-          )}
+          <div className="flex items-center space-x-4">
+            {isAuthenticated && user && (
+              <div className="flex items-center space-x-2 text-sm text-gray-600">
+                <User className="w-4 h-4" />
+                <span>{user.name || user.username}</span>
+              </div>
+            )}
+            {isAuthenticated && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={logout}
+                className="p-2"
+                title="Logout"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            )}
+            {isMeetingPage && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsHidden(true)}
+                className="p-2"
+                title="Hide navigation for presentation"
+              >
+                <EyeOff className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </header>

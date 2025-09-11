@@ -114,14 +114,32 @@ model MeetingItem {
   @@map("meeting_items")
 }
 
-model EmailDraft {
-  id          String       @id @default(cuid())
+model EmailTemplate {
+  id          String             @id @default(cuid())
+  name        String
+  description String?
   subject     String
   content     String
-  sentAt      DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-  emailIssues EmailIssue[]
+  variables   String? // JSON string of template variables
+  isDefault   Boolean            @default(false)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  emailDrafts EmailDraft[]
+
+  @@map("email_templates")
+}
+
+model EmailDraft {
+  id            String        @id @default(cuid())
+  subject       String
+  content       String
+  recipients    String? // JSON array of recipients
+  templateId    String?
+  sentAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  emailIssues   EmailIssue[]
+  template      EmailTemplate? @relation(fields: [templateId], references: [id])
 
   @@map("email_drafts")
 }

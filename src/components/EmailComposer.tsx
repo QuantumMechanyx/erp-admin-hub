@@ -1,0 +1,483 @@
+"use client"
+
+import { useState, useEffect } from "react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { 
+  Mail, 
+  Send, 
+  Save, 
+  Eye, 
+  File, 
+  FileText, 
+  Plus,
+  X,
+  RefreshCw,
+  Copy
+} from "lucide-react"
+
+interface EmailTemplate {
+  id: string
+  name: string
+  description?: string
+  subject: string
+  content: string
+  variables?: string
+  isDefault: boolean
+}
+
+interface TemplateData {
+  currentDate: string
+  currentWeek: string
+  stats: {
+    total: number
+    open: number
+    inProgress: number
+    resolved: number
+    closed: number
+    resolvedThisWeek: number
+    newThisWeek: number
+    highPriority: number
+  }
+  openIssues: Array<{
+    id: string
+    title: string
+    description?: string
+    priority: string
+    category: string
+    assignedTo?: string
+    createdAt: string
+  }>
+  inProgressIssues: Array<{
+    id: string
+    title: string
+    description?: string
+    priority: string
+    category: string
+    assignedTo?: string
+    workPerformed?: string
+  }>
+  resolvedThisWeek: Array<{
+    id: string
+    title: string
+    description?: string
+    category: string
+    resolvedAt: string
+  }>
+  highPriorityIssues: Array<{
+    id: string
+    title: string
+    priority: string
+    category: string
+    status: string
+  }>
+  categoryBreakdown: Array<{
+    name: string
+    count: number
+    color?: string
+  }>
+}
+
+interface EmailComposerProps {
+  onClose?: () => void
+  draftId?: string
+}
+
+export function EmailComposer({ onClose, draftId }: EmailComposerProps) {
+  const [templates, setTemplates] = useState<EmailTemplate[]>([])
+  const [templateData, setTemplateData] = useState<TemplateData | null>(null)
+  const [selectedTemplate, setSelectedTemplate] = useState<string>("")
+  const [subject, setSubject] = useState("")
+  const [content, setContent] = useState("")
+  const [recipients, setRecipients] = useState<string[]>([])
+  const [newRecipient, setNewRecipient] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
+  const [isLoadingData, setIsLoadingData] = useState(false)
+
+  // Load templates and template data on mount
+  useEffect(() => {
+    loadTemplates()
+    loadTemplateData()
+  }, [])
+
+  const loadTemplates = async () => {
+    try {
+      const response = await fetch("/api/email-templates")
+      const data = await response.json()
+      setTemplates(data)
+      
+      // Auto-select default template if none selected
+      const defaultTemplate = data.find((t: EmailTemplate) => t.isDefault)
+      if (defaultTemplate && !selectedTemplate) {
+        setSelectedTemplate(defaultTemplate.id)
+        applyTemplate(defaultTemplate)
+      }
+    } catch (error) {
+      console.error("Error loading templates:", error)
+    }
+  }
+
+  const loadTemplateData = async () => {
+    setIsLoadingData(true)
+    try {
+      const response = await fetch("/api/email-templates/template-data")
+      const data = await response.json()
+      setTemplateData(data)
+    } catch (error) {
+      console.error("Error loading template data:", error)
+    } finally {
+      setIsLoadingData(false)
+    }
+  }
+
+  const applyTemplate = (template: EmailTemplate) => {
+    setSubject(template.subject)
+    setContent(template.content)
+  }
+
+  const handleTemplateChange = (templateId: string) => {
+    setSelectedTemplate(templateId)
+    const template = templates.find(t => t.id === templateId)
+    if (template) {
+      applyTemplate(template)
+    }
+  }
+
+  const processTemplate = (text: string): string => {
+    if (!templateData) return text
+
+    let processed = text
+    
+    // Replace date variables
+    processed = processed.replace(/{{currentDate}}/g, templateData.currentDate)
+    processed = processed.replace(/{{currentWeek}}/g, templateData.currentWeek)
+    
+    // Replace statistics
+    Object.entries(templateData.stats).forEach(([key, value]) => {
+      processed = processed.replace(new RegExp(`{{stats\\.${key}}}`, 'g'), value.toString())
+    })
+    
+    // Replace issue lists
+    if (processed.includes('{{openIssues}}') && templateData.openIssues.length > 0) {
+      const issuesList = templateData.openIssues.map(issue => 
+        `• ${issue.title} (${issue.priority}) - ${issue.category}`
+      ).join('\\n')
+      processed = processed.replace(/{{openIssues}}/g, issuesList)
+    }
+    
+    if (processed.includes('{{inProgressIssues}}') && templateData.inProgressIssues.length > 0) {
+      const issuesList = templateData.inProgressIssues.map(issue => 
+        `• ${issue.title} (${issue.priority}) - ${issue.category}${issue.workPerformed ? ` - Work: ${issue.workPerformed}` : ''}`
+      ).join('\\n')
+      processed = processed.replace(/{{inProgressIssues}}/g, issuesList)
+    }
+    
+    if (processed.includes('{{resolvedThisWeek}}') && templateData.resolvedThisWeek.length > 0) {
+      const issuesList = templateData.resolvedThisWeek.map(issue => 
+        `• ${issue.title} - ${issue.category} (Resolved: ${issue.resolvedAt})`
+      ).join('\\n')
+      processed = processed.replace(/{{resolvedThisWeek}}/g, issuesList)
+    }
+    
+    return processed
+  }
+
+  const addRecipient = () => {
+    if (newRecipient && !recipients.includes(newRecipient)) {
+      setRecipients([...recipients, newRecipient])
+      setNewRecipient("")
+    }
+  }
+
+  const removeRecipient = (email: string) => {
+    setRecipients(recipients.filter(r => r !== email))
+  }
+
+  const handleSave = async () => {
+    setIsLoading(true)
+    try {
+      // Save draft logic here
+      console.log("Saving draft:", { subject, content, recipients })
+    } catch (error) {
+      console.error("Error saving draft:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleSend = async () => {
+    setIsLoading(true)
+    try {
+      // Send email logic here
+      console.log("Sending email:", { subject, content, recipients })
+    } catch (error) {
+      console.error("Error sending email:", error)
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-2xl font-bold">Email Composer</h2>
+          <p className="text-muted-foreground">
+            Create and send stakeholder emails with dashboard data integration
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={loadTemplateData} disabled={isLoadingData}>
+            <RefreshCw className={`w-4 h-4 mr-2 ${isLoadingData ? 'animate-spin' : ''}`} />
+            Refresh Data
+          </Button>
+          {onClose && (
+            <Button variant="outline" onClick={onClose}>
+              <X className="w-4 h-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+
+      <Tabs defaultValue="compose" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="compose">Compose</TabsTrigger>
+          <TabsTrigger value="preview">Preview</TabsTrigger>
+          <TabsTrigger value="data">Template Data</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="compose" className="space-y-6">
+          <div className="grid lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2 space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <File className="w-5 h-5" />
+                    Email Template
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="template">Select Template</Label>
+                    <Select value={selectedTemplate} onValueChange={handleTemplateChange}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Choose a template..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {templates.map((template) => (
+                          <SelectItem key={template.id} value={template.id}>
+                            <div className="flex items-center gap-2">
+                              {template.name}
+                              {template.isDefault && (
+                                <Badge variant="secondary" className="text-xs">Default</Badge>
+                              )}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Mail className="w-5 h-5" />
+                    Email Content
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="subject">Subject</Label>
+                    <Input
+                      id="subject"
+                      value={subject}
+                      onChange={(e) => setSubject(e.target.value)}
+                      placeholder="Email subject..."
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="content">Content</Label>
+                    <Textarea
+                      id="content"
+                      value={content}
+                      onChange={(e) => setContent(e.target.value)}
+                      placeholder="Email content..."
+                      className="min-h-[400px]"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Use template variables like {`{{currentDate}}, {{stats.total}}, {{openIssues}}`}, etc.
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle>Recipients</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex gap-2">
+                    <Input
+                      value={newRecipient}
+                      onChange={(e) => setNewRecipient(e.target.value)}
+                      placeholder="email@example.com"
+                      onKeyPress={(e) => e.key === 'Enter' && addRecipient()}
+                    />
+                    <Button size="sm" onClick={addRecipient}>
+                      <Plus className="w-4 h-4" />
+                    </Button>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    {recipients.map((recipient) => (
+                      <div key={recipient} className="flex items-center justify-between p-2 bg-muted rounded">
+                        <span className="text-sm">{recipient}</span>
+                        <Button 
+                          size="sm" 
+                          variant="ghost" 
+                          onClick={() => removeRecipient(recipient)}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                  
+                  {recipients.length === 0 && (
+                    <p className="text-center text-muted-foreground text-sm py-4">
+                      No recipients added yet
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Button onClick={handleSave} disabled={isLoading} className="w-full">
+                    <Save className="w-4 h-4 mr-2" />
+                    Save Draft
+                  </Button>
+                  <Button 
+                    onClick={handleSend} 
+                    disabled={isLoading || recipients.length === 0}
+                    variant="default"
+                    className="w-full"
+                  >
+                    <Send className="w-4 h-4 mr-2" />
+                    Send Email
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="preview" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Eye className="w-5 h-5" />
+                Email Preview
+              </CardTitle>
+              <CardDescription>
+                Preview how your email will look with template variables processed
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="border rounded-lg p-4 bg-background">
+                <div className="space-y-4">
+                  <div>
+                    <strong>Subject:</strong> {processTemplate(subject)}
+                  </div>
+                  <Separator />
+                  <div className="whitespace-pre-wrap">
+                    {processTemplate(content)}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="data" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileText className="w-5 h-5" />
+                Available Template Variables
+              </CardTitle>
+              <CardDescription>
+                Current dashboard data available for your email templates
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {isLoadingData ? (
+                <div className="flex items-center justify-center py-8">
+                  <RefreshCw className="w-6 h-6 animate-spin mr-2" />
+                  Loading template data...
+                </div>
+              ) : templateData ? (
+                <div className="space-y-6">
+                  <div>
+                    <h4 className="font-semibold mb-2">Date Variables</h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <code>{`{{currentDate}}`}</code>
+                      <span>{templateData.currentDate}</span>
+                      <code>{`{{currentWeek}}`}</code>
+                      <span>{templateData.currentWeek}</span>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <h4 className="font-semibold mb-2">Statistics</h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      {Object.entries(templateData.stats).map(([key, value]) => (
+                        <div key={key} className="contents">
+                          <code>{`{{stats.${key}}}`}</code>
+                          <span>{value}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <h4 className="font-semibold mb-2">Issue Lists</h4>
+                    <div className="space-y-2 text-sm">
+                      <div><code>{`{{openIssues}}`}</code> - {templateData.openIssues.length} issues</div>
+                      <div><code>{`{{inProgressIssues}}`}</code> - {templateData.inProgressIssues.length} issues</div>
+                      <div><code>{`{{resolvedThisWeek}}`}</code> - {templateData.resolvedThisWeek.length} issues</div>
+                      <div><code>{`{{highPriorityIssues}}`}</code> - {templateData.highPriorityIssues.length} issues</div>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-center text-muted-foreground py-8">
+                  Failed to load template data
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}
