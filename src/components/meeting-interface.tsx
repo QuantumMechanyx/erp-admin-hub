@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useTransition, useCallback } from "react"
+import { useState, useCallback } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -9,11 +9,8 @@ import {
   Clock, 
   MessageSquare, 
   AlertTriangle,
-  Plus,
-  Play,
-  Square
+  Plus
 } from "lucide-react"
-import { startMeeting, endMeeting } from "@/lib/meeting-actions"
 import { AddIssuesDialog } from "@/components/add-issues-dialog"
 
 type Meeting = {
@@ -45,7 +42,6 @@ interface MeetingInterfaceProps {
 }
 
 export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceProps) {
-  const [isPending, startTransition] = useTransition()
   const [generalNotes, setGeneralNotes] = useState(meeting.generalNotes || "")
   const [externalHelp, setExternalHelp] = useState(meeting.externalHelp || "")
   const [itemDiscussionNotes, setItemDiscussionNotes] = useState<Record<string, string>>(
@@ -88,17 +84,6 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
     setExternalHelp(formattedNotes)
   }
 
-  const handleStartMeeting = () => {
-    startTransition(async () => {
-      await startMeeting(meeting.id)
-    })
-  }
-
-  const handleEndMeeting = () => {
-    startTransition(async () => {
-      await endMeeting(meeting.id, generalNotes, externalHelp)
-    })
-  }
 
   const priorityColors = {
     LOW: "bg-gray-100 text-gray-800",
@@ -119,33 +104,13 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
 
   return (
     <>
-      {/* Meeting Status and Controls */}
+      {/* Meeting Header */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>{meeting.title}</CardTitle>
-              <CardDescription>
-                Status: <Badge variant={meeting.status === "ACTIVE" ? "default" : "outline"}>
-                  {meeting.status}
-                </Badge>
-              </CardDescription>
-            </div>
-            <div className="flex gap-2">
-              {meeting.status === "PLANNED" && (
-                <Button onClick={handleStartMeeting} disabled={isPending}>
-                  <Play className="w-4 h-4 mr-2" />
-                  Start Meeting
-                </Button>
-              )}
-              {meeting.status === "ACTIVE" && (
-                <Button onClick={handleEndMeeting} disabled={isPending} variant="outline">
-                  <Square className="w-4 h-4 mr-2" />
-                  End Meeting
-                </Button>
-              )}
-            </div>
-          </div>
+          <CardTitle>{meeting.title}</CardTitle>
+          <CardDescription>
+            Live note-taking workspace for team discussions
+          </CardDescription>
         </CardHeader>
       </Card>
 
