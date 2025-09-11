@@ -29,6 +29,7 @@ type Meeting = {
       id: string
       title: string
       description?: string | null
+      additionalHelp?: string | null
       priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT"
       status: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED"
       category?: { name: string } | null
@@ -43,7 +44,6 @@ interface MeetingInterfaceProps {
 
 export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceProps) {
   const [generalNotes, setGeneralNotes] = useState(meeting.generalNotes || "")
-  const [externalHelp, setExternalHelp] = useState(meeting.externalHelp || "")
   const [itemDiscussionNotes, setItemDiscussionNotes] = useState<Record<string, string>>(
     Object.fromEntries(
       meeting.meetingItems.map(item => [item.issueId, item.discussionNotes || ""])
@@ -79,10 +79,6 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
     setGeneralNotes(formattedNotes)
   }
 
-  const updateExternalHelp = (notes: string) => {
-    const formattedNotes = formatText(notes)
-    setExternalHelp(formattedNotes)
-  }
 
 
   const priorityColors = {
@@ -145,6 +141,15 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
                   {item.issue.category && (
                     <Badge variant="outline">{item.issue.category.name}</Badge>
                   )}
+                  {item.issue.additionalHelp && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-orange-600" />
+                        <h6 className="font-medium text-xs text-orange-900">Additional Help Needed:</h6>
+                      </div>
+                      <p className="text-xs text-orange-800 whitespace-pre-wrap">{item.issue.additionalHelp}</p>
+                    </div>
+                  )}
                   <div className="space-y-2 pt-2 border-t">
                     <h5 className="font-medium text-xs text-muted-foreground">Today&apos;s Discussion:</h5>
                     <Textarea
@@ -198,6 +203,15 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
                   {item.issue.category && (
                     <Badge variant="outline">{item.issue.category.name}</Badge>
                   )}
+                  {item.issue.additionalHelp && (
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 space-y-1">
+                      <div className="flex items-center gap-2">
+                        <AlertTriangle className="w-4 h-4 text-orange-600" />
+                        <h6 className="font-medium text-xs text-orange-900">Additional Help Needed:</h6>
+                      </div>
+                      <p className="text-xs text-orange-800 whitespace-pre-wrap">{item.issue.additionalHelp}</p>
+                    </div>
+                  )}
                   <div className="space-y-2 pt-2 border-t">
                     <h5 className="font-medium text-xs text-muted-foreground">Discussion Notes:</h5>
                     <Textarea
@@ -218,26 +232,6 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
         </Card>
       </div>
 
-      {/* Additional Help Needed */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5" />
-            Additional Help Needed
-          </CardTitle>
-          <CardDescription>
-            Areas requiring collaboration with Accounting
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Textarea
-            value={externalHelp}
-            onChange={(e) => updateExternalHelp(e.target.value)}
-            placeholder="Add requests for assistance from Accounting department..."
-            className="min-h-[100px]"
-          />
-        </CardContent>
-      </Card>
 
       {/* General Meeting Notes */}
       <Card>
