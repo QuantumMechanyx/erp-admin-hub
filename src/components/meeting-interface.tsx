@@ -163,16 +163,24 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
         {/* Current Items */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <MessageSquare className="w-5 h-5" />
-              Current Meeting Items
-            </CardTitle>
-            <CardDescription>
-              New items for today&apos;s discussion
-            </CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <MessageSquare className="w-5 h-5" />
+                  Current Meeting Items
+                </CardTitle>
+                <CardDescription>
+                  New items for today&apos;s discussion
+                </CardDescription>
+              </div>
+              <Button variant="outline" onClick={openAddIssuesDialog}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Issues
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            {currentItems.length > 0 ? (
+{currentItems.length > 0 ? (
               currentItems.map((item) => (
                 <div key={item.id} className="border rounded-lg p-4 space-y-2">
                   <div className="flex items-start justify-between gap-2">
@@ -203,11 +211,7 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
               ))
             ) : (
               <div className="text-center py-8">
-                <p className="text-muted-foreground mb-4">No items in today&apos;s agenda yet</p>
-                <Button variant="outline" onClick={openAddIssuesDialog}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Issues to Meeting
-                </Button>
+                <p className="text-muted-foreground">No items in today&apos;s agenda yet</p>
               </div>
             )}
           </CardContent>
