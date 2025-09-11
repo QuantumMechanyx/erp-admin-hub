@@ -6,9 +6,10 @@ import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
-export default async function EditIssuePage({ params }: { params: { id: string } }) {
+export default async function EditIssuePage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const [issue, categories] = await Promise.all([
-    getIssue(params.id),
+    getIssue(id),
     getCategories()
   ])
 
