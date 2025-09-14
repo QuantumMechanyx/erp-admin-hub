@@ -13,25 +13,26 @@ import { redirect } from "next/navigation"
 export const revalidate = 0
 
 interface MeetingsPageProps {
-  searchParams: { issue?: string }
+  searchParams: Promise<{ issue?: string }>
 }
 
 export default async function MeetingsPage({ searchParams }: MeetingsPageProps) {
+  const resolvedSearchParams = await searchParams
   const [meeting, availableIssues] = await Promise.all([
     getCurrentOrNextMeeting(),
     getAvailableIssues()
   ])
 
   // If an issue ID is provided in the URL, add it to the meeting
-  if (searchParams.issue) {
+  if (resolvedSearchParams.issue) {
     try {
       // Check if the issue is already in the meeting
       const issueAlreadyInMeeting = meeting.meetingItems.some(
-        item => item.issueId === searchParams.issue
+        item => item.issueId === resolvedSearchParams.issue
       )
 
       if (!issueAlreadyInMeeting) {
-        await addIssueToMeeting(meeting.id, searchParams.issue)
+        await addIssueToMeeting(meeting.id, resolvedSearchParams.issue)
         // Redirect to remove the query parameter after adding
         redirect('/meetings')
       }

@@ -327,8 +327,6 @@ export async function addIssueToMeeting(meetingId: string, issueId: string) {
         carriedOver: false
       }
     })
-
-    revalidatePath("/meetings")
   } catch (error) {
     console.error("Error adding issue to meeting:", error)
     throw new Error("Failed to add issue to meeting")
