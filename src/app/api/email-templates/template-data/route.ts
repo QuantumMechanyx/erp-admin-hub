@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server"
 import { PrismaClient } from "@prisma/client"
+import { zendeskService } from "@/lib/zendesk-service"
+import { isZendeskConfigured } from "@/lib/zendesk-config"
 
 const prisma = new PrismaClient()
 
@@ -115,6 +117,44 @@ export async function GET() {
       })
     ])
 
+    // Get Zendesk data if configured
+    let zendeskData = null
+    if (isZendeskConfigured()) {
+      try {
+        const [zendeskStats, zendeskTickets, zendeskHighPriority] = await Promise.all([
+          zendeskService.getTicketStats(),
+          zendeskService.getRecentTickets(7),
+          zendeskService.getHighPriorityTickets()
+        ])
+        
+        zendeskData = {
+          stats: zendeskStats,
+          recentTickets: zendeskTickets.map(ticket => ({
+            id: ticket.id,
+            subject: ticket.subject,
+            status: ticket.status,
+            priority: ticket.priority,
+            created_at: new Date(ticket.created_at).toLocaleDateString(),
+            updated_at: new Date(ticket.updated_at).toLocaleDateString()
+          })),
+          highPriorityTickets: zendeskHighPriority.map(ticket => ({
+            id: ticket.id,
+            subject: ticket.subject,
+            priority: ticket.priority,
+            status: ticket.status,
+            created_at: new Date(ticket.created_at).toLocaleDateString()
+          }))
+        }
+      } catch (error) {
+        console.warn('Failed to fetch Zendesk data:', error)
+        zendeskData = {
+          stats: { total: 0, open: 0, pending: 0, solved: 0, closed: 0, new: 0, high_priority: 0, urgent_priority: 0 },
+          recentTickets: [],
+          highPriorityTickets: []
+        }
+      }
+    }
+
     // Calculate statistics
     const stats = {
       total: allIssues.length,
@@ -194,7 +234,10 @@ export async function GET() {
         meetingDate: meeting.meetingDate.toLocaleDateString(),
         status: meeting.status,
         itemCount: meeting.meetingItems.length
-      }))
+      })),
+      
+      // Zendesk integration data
+      zendesk: zendeskData
     }
 
     return NextResponse.json(templateData)

@@ -9,22 +9,17 @@ import { useAuth } from "@/contexts/AuthContext"
 
 const navigation = [
   {
-    name: "Home",
-    href: "/",
-    description: "Main interface selector"
-  },
-  {
-    name: "Dashboard",
+    name: "Working Interface",
     href: "/dashboard",
     description: "Working interface for issue management"
   },
   {
-    name: "Meetings",
+    name: "Meeting Interface",
     href: "/meetings",
     description: "Meeting interface for discussions"
   },
   {
-    name: "Email Drafts",
+    name: "Email Interface",
     href: "/emails",
     description: "Email drafting interface"
   }
@@ -57,18 +52,14 @@ export function Navigation() {
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center space-x-8">
-            <Link href="/" className="text-xl font-bold">
+            <Link href="/" className="text-xl font-bold whitespace-nowrap">
               ERP Admin Hub
             </Link>
             <nav className="flex space-x-4">
               {navigation.map((item) => (
                 <Button
                   key={item.name}
-                  variant={
-                    item.href === "/" 
-                      ? (pathname === "/" ? "default" : "ghost")
-                      : (pathname.startsWith(item.href) ? "default" : "ghost")
-                  }
+                  variant={pathname.startsWith(item.href) ? "default" : "ghost"}
                   asChild
                 >
                   <Link href={item.href}>

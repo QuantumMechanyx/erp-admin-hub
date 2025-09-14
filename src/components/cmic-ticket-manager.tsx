@@ -81,7 +81,7 @@ export function CmicTicketManager({ issue, cmicNotes }: CmicTicketManagerProps) 
             <CardContent className="pt-4">
               <form action={updateTicketAction} className="space-y-4">
                 <div className="text-center mb-4">
-                  <p className="text-muted-foreground">No CMiC ticket associated with this issue</p>
+                  <p className="text-muted-foreground">Link an existing CMiC support ticket to this issue</p>
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -121,7 +121,7 @@ export function CmicTicketManager({ issue, cmicNotes }: CmicTicketManagerProps) 
                 
                 <div className="flex gap-2">
                   <Button type="submit" size="sm">
-                    Create CMiC Ticket
+                    Link CMiC Ticket
                   </Button>
                   <Button 
                     type="button" 

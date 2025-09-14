@@ -6,16 +6,39 @@ import {
   FileText, 
   ChevronRight
 } from "lucide-react"
-import { getCurrentOrNextMeeting, getAvailableIssues } from "@/lib/meeting-actions"
+import { getCurrentOrNextMeeting, getAvailableIssues, addIssueToMeeting } from "@/lib/meeting-actions"
 import { MeetingInterface } from "@/components/meeting-interface"
+import { redirect } from "next/navigation"
 
 export const revalidate = 0
 
-export default async function MeetingsPage() {
+interface MeetingsPageProps {
+  searchParams: { issue?: string }
+}
+
+export default async function MeetingsPage({ searchParams }: MeetingsPageProps) {
   const [meeting, availableIssues] = await Promise.all([
     getCurrentOrNextMeeting(),
     getAvailableIssues()
   ])
+
+  // If an issue ID is provided in the URL, add it to the meeting
+  if (searchParams.issue) {
+    try {
+      // Check if the issue is already in the meeting
+      const issueAlreadyInMeeting = meeting.meetingItems.some(
+        item => item.issueId === searchParams.issue
+      )
+
+      if (!issueAlreadyInMeeting) {
+        await addIssueToMeeting(meeting.id, searchParams.issue)
+        // Redirect to remove the query parameter after adding
+        redirect('/meetings')
+      }
+    } catch (error) {
+      console.error("Failed to add issue to meeting:", error)
+    }
+  }
 
   return (
     <div className="space-y-6">

@@ -6,7 +6,7 @@ export default function Home() {
   return (
     <div className="space-y-8">
       <div className="text-center space-y-4">
-        <h1 className="text-4xl font-bold">ERP Admin Hub</h1>
+        <h1 className="text-4xl font-bold whitespace-nowrap">ERP Admin Hub</h1>
         <p className="text-xl text-muted-foreground">
           Manage high-priority ERP issues, organize meetings, and draft stakeholder communications
         </p>
@@ -22,7 +22,7 @@ export default function Home() {
           </CardHeader>
           <CardContent>
             <Button asChild className="w-full">
-              <Link href="/dashboard">Go to Dashboard</Link>
+              <Link href="/dashboard">Go to Working Interface</Link>
             </Button>
           </CardContent>
         </Card>
@@ -36,21 +36,21 @@ export default function Home() {
           </CardHeader>
           <CardContent>
             <Button asChild className="w-full">
-              <Link href="/meetings">View Meetings</Link>
+              <Link href="/meetings">Go to Meeting Interface</Link>
             </Button>
           </CardContent>
         </Card>
         
         <Card className="hover:shadow-lg transition-shadow">
           <CardHeader>
-            <CardTitle>Email Drafts</CardTitle>
+            <CardTitle>Email Interface</CardTitle>
             <CardDescription>
-              Draft weekly stakeholder emails with selected issues and updates
+              Draft weekly team summary emails with selected issues. Now with more AI!
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button asChild className="w-full">
-              <Link href="/emails">Draft Emails</Link>
+              <Link href="/emails">Go to Email Interface</Link>
             </Button>
           </CardContent>
         </Card>

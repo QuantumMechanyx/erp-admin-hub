@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -52,17 +53,17 @@ export function IssueActions({ issue }: IssueActionsProps) {
       <CardContent className="space-y-4">
         <div className="space-y-2">
           <Button variant="outline" className="w-full justify-start" asChild>
-            <a href={`/meetings?issue=${issue.id}`}>
+            <Link href={`/meetings?issue=${issue.id}`}>
               <ExternalLink className="w-4 h-4 mr-2" />
               Add to Meeting
-            </a>
+            </Link>
           </Button>
           
           <Button variant="outline" className="w-full justify-start" asChild>
-            <a href={`/emails?issue=${issue.id}`}>
+            <Link href={`/emails?issue=${issue.id}`}>
               <ExternalLink className="w-4 h-4 mr-2" />
               Include in Email
-            </a>
+            </Link>
           </Button>
         </div>
 

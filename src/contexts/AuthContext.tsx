@@ -42,11 +42,34 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [bypassUser, setBypassUser] = useState<User | null>(null)
+  const [msalInitialized, setMsalInitialized] = useState(false)
 
-  // Check for bypass auth in session storage
+  // Initialize MSAL and check for existing authentication
   useEffect(() => {
+    const initializeMsal = async () => {
+      try {
+        console.log('🚀 Initializing MSAL...')
+        await instance.initialize()
+        console.log('✅ MSAL initialized')
+        setMsalInitialized(true)
+      } catch (error) {
+        console.error('❌ MSAL initialization failed:', error)
+        setMsalInitialized(true) // Continue anyway
+      }
+    }
+
+    initializeMsal()
+  }, [instance])
+
+  // Check for bypass auth in local storage
+  useEffect(() => {
+    if (!msalInitialized) {
+      console.log('⏳ Waiting for MSAL initialization...')
+      return
+    }
     const checkBypassAuth = () => {
-      const bypassAuth = sessionStorage.getItem("bypass-auth")
+      const bypassAuth = localStorage.getItem("bypass-auth")
+      
       if (bypassAuth) {
         try {
           const userData = JSON.parse(bypassAuth)
@@ -55,7 +78,7 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
           setIsLoading(false)
           return
         } catch (error) {
-          sessionStorage.removeItem("bypass-auth")
+          localStorage.removeItem("bypass-auth")
         }
       }
       
@@ -68,12 +91,17 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
           email: account.username,
           authType: "azure",
         })
+        setIsLoading(false)
+        return
       }
+      
+      // Only set loading to false if we've checked both authentication methods
+      // and found no valid authentication
       setIsLoading(false)
     }
 
     checkBypassAuth()
-  }, [accounts])
+  }, [msalInitialized, accounts])
 
   const login = async () => {
     try {
@@ -113,8 +141,8 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
             authType: "bypass",
           }
           
-          // Store in session storage
-          sessionStorage.setItem("bypass-auth", JSON.stringify(bypassUserData))
+          // Store in local storage
+          localStorage.setItem("bypass-auth", JSON.stringify(bypassUserData))
           setBypassUser(bypassUserData)
           setUser(bypassUserData)
           setIsLoading(false)
@@ -136,7 +164,7 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
       setIsLoading(true)
       
       // Clear bypass auth
-      sessionStorage.removeItem("bypass-auth")
+      localStorage.removeItem("bypass-auth")
       setBypassUser(null)
       
       // If Azure user, logout from MSAL

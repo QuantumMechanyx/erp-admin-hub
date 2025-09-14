@@ -15,10 +15,14 @@ import {
   ChevronRight,
   Save,
   Play,
-  Square
+  Square,
+  CheckSquare,
+  FileText
 } from "lucide-react"
 import { AddIssuesDialog } from "@/components/add-issues-dialog"
 import { AdditionalHelpNotes } from "@/components/additional-help-notes-simple"
+import { ActionItemForm } from "@/components/action-item-form"
+import { useMeetingData } from "@/hooks/use-meeting-data"
 import { 
   removeIssueFromMeeting, 
   updateMeetingItemNotes, 
@@ -28,6 +32,24 @@ import {
 } from "@/lib/meeting-actions"
 
 type AdditionalHelpNote = {
+  id: string
+  content: string
+  author?: string | null
+  createdAt: Date
+}
+
+type ActionItem = {
+  id: string
+  title: string
+  description?: string | null
+  completed: boolean
+  priority: number
+  dueDate?: Date | null
+  createdAt: Date
+  updatedAt: Date
+}
+
+type Note = {
   id: string
   content: string
   author?: string | null
@@ -53,6 +75,8 @@ type Meeting = {
       description?: string | null
       additionalHelp?: string | null
       additionalHelpNotes?: AdditionalHelpNote[]
+      actionItems?: ActionItem[]
+      notes?: Note[]
       priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT"
       status: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED"
       category?: { name: string } | null
@@ -65,26 +89,36 @@ interface MeetingInterfaceProps {
   availableIssues: unknown[]
 }
 
-export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceProps) {
+export function MeetingInterface({ meeting: initialMeeting, availableIssues }: MeetingInterfaceProps) {
+  const {
+    meeting,
+    generalNotes,
+    setGeneralNotes,
+    itemDiscussionNotes,
+    setItemDiscussionNotes,
+    showActionItemForm,
+    toggleActionItemForm,
+    createActionItem,
+    refreshMeeting
+  } = useMeetingData(initialMeeting)
 
   const handleRemoveIssue = async (issueId: string) => {
     try {
       await removeIssueFromMeeting(meeting.id, issueId)
-      window.location.reload() // Simple refresh to update the UI
+      refreshMeeting()
     } catch (error) {
       console.error("Failed to remove issue:", error)
     }
   }
-  const [generalNotes, setGeneralNotes] = useState(meeting.generalNotes || "")
-  const [itemDiscussionNotes, setItemDiscussionNotes] = useState<Record<string, string>>(
-    Object.fromEntries(
-      meeting.meetingItems.map(item => [item.issueId, item.discussionNotes || ""])
-    )
-  )
+  
   const [showAddIssuesDialog, setShowAddIssuesDialog] = useState(false)
   const [collapsedHelpNotes, setCollapsedHelpNotes] = useState<Record<string, boolean>>(
     Object.fromEntries(
-      meeting.meetingItems.map(item => [item.issue.id, true]) // Default to collapsed
+      meeting.meetingItems.flatMap(item => [
+        [item.issue.id, true], // Additional help notes collapsed
+        [`${item.issue.id}-actions`, true], // Action items collapsed
+        [`${item.issue.id}-notes`, true] // Notes collapsed
+      ])
     )
   )
   
@@ -118,7 +152,9 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
 
   const handleAddIssuesDialogClose = useCallback(() => {
     setShowAddIssuesDialog(false)
-  }, [])
+    refreshMeeting()
+  }, [refreshMeeting])
+
 
   const formatText = (text: string) => {
     return text
@@ -176,7 +212,7 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
   const handleStartMeeting = async () => {
     try {
       await startMeeting(meeting.id)
-      window.location.reload() // Refresh to show updated status
+      refreshMeeting()
     } catch (error) {
       console.error("Failed to start meeting:", error)
     }
@@ -488,6 +524,110 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
                       )}
                     </div>
                   )}
+                  {item.issue.actionItems && item.issue.actionItems.length > 0 && (
+                    <div className="border rounded-lg">
+                      <div className="flex items-center justify-between p-3 pb-2">
+                        <div className="flex items-center gap-2">
+                          <CheckSquare className="w-4 h-4 text-blue-600" />
+                          <h6 className="text-sm font-medium">Action Items</h6>
+                          <Badge variant="secondary" className="text-xs">{item.issue.actionItems.length}</Badge>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setCollapsedHelpNotes(prev => ({
+                            ...prev,
+                            [`${item.issue.id}-actions`]: !prev[`${item.issue.id}-actions`]
+                          }))}
+                          className="p-1 h-6 w-6"
+                        >
+                          {collapsedHelpNotes[`${item.issue.id}-actions`] ? (
+                            <ChevronRight className="w-3 h-3" />
+                          ) : (
+                            <ChevronDown className="w-3 h-3" />
+                          )}
+                        </Button>
+                      </div>
+                      {!collapsedHelpNotes[`${item.issue.id}-actions`] && (
+                        <div className="px-3 pb-3 space-y-2">
+                          {item.issue.actionItems.map((actionItem) => (
+                            <div key={actionItem.id} className="flex items-start gap-2 p-2 bg-gray-50 rounded text-sm">
+                              <div className={`w-3 h-3 rounded-sm border mt-0.5 ${actionItem.completed ? 'bg-green-500 border-green-500' : 'border-gray-300'}`} />
+                              <div className="flex-1">
+                                <p className={actionItem.completed ? 'line-through text-gray-500' : ''}>{actionItem.title}</p>
+                                {actionItem.description && (
+                                  <p className="text-xs text-gray-600 mt-1">{actionItem.description}</p>
+                                )}
+                                {actionItem.dueDate && (
+                                  <p className="text-xs text-blue-600 mt-1">Due: {new Date(actionItem.dueDate).toLocaleDateString()}</p>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                          
+                          {/* Add Action Item */}
+                          {!showActionItemForm[item.issue.id] && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => toggleActionItemForm(item.issue.id)}
+                              className="w-full justify-start text-xs"
+                            >
+                              <Plus className="w-3 h-3 mr-1" />
+                              Add Action Item
+                            </Button>
+                          )}
+                          
+                          {showActionItemForm[item.issue.id] && (
+                            <ActionItemForm
+                              issueId={item.issue.id}
+                              onSubmit={createActionItem}
+                              onCancel={() => toggleActionItemForm(item.issue.id)}
+                            />
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {item.issue.notes && item.issue.notes.length > 0 && (
+                    <div className="border rounded-lg">
+                      <div className="flex items-center justify-between p-3 pb-2">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-green-600" />
+                          <h6 className="text-sm font-medium">Issue Notes</h6>
+                          <Badge variant="secondary" className="text-xs">{item.issue.notes.length}</Badge>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setCollapsedHelpNotes(prev => ({
+                            ...prev,
+                            [`${item.issue.id}-notes`]: !prev[`${item.issue.id}-notes`]
+                          }))}
+                          className="p-1 h-6 w-6"
+                        >
+                          {collapsedHelpNotes[`${item.issue.id}-notes`] ? (
+                            <ChevronRight className="w-3 h-3" />
+                          ) : (
+                            <ChevronDown className="w-3 h-3" />
+                          )}
+                        </Button>
+                      </div>
+                      {!collapsedHelpNotes[`${item.issue.id}-notes`] && (
+                        <div className="px-3 pb-3 space-y-2">
+                          {item.issue.notes.map((note) => (
+                            <div key={note.id} className="p-2 bg-gray-50 rounded text-sm">
+                              <p>{note.content}</p>
+                              <div className="flex justify-between items-center mt-1 text-xs text-gray-500">
+                                <span>{note.author || 'Anonymous'}</span>
+                                <span>{new Date(note.createdAt).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="space-y-2 pt-2 border-t">
                     <h5 className="font-medium text-xs text-muted-foreground">Today&apos;s Discussion:</h5>
                     <Textarea
@@ -582,6 +722,110 @@ export function MeetingInterface({ meeting, availableIssues }: MeetingInterfaceP
                               issueId={item.issue.id} 
                               notes={item.issue.additionalHelpNotes || []}
                             />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {item.issue.actionItems && item.issue.actionItems.length > 0 && (
+                      <div className="border rounded-lg">
+                        <div className="flex items-center justify-between p-3 pb-2">
+                          <div className="flex items-center gap-2">
+                            <CheckSquare className="w-4 h-4 text-blue-600" />
+                            <h6 className="text-sm font-medium">Action Items</h6>
+                            <Badge variant="secondary" className="text-xs">{item.issue.actionItems.length}</Badge>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setCollapsedHelpNotes(prev => ({
+                              ...prev,
+                              [`${item.issue.id}-actions`]: !prev[`${item.issue.id}-actions`]
+                            }))}
+                            className="p-1 h-6 w-6"
+                          >
+                            {collapsedHelpNotes[`${item.issue.id}-actions`] ? (
+                              <ChevronRight className="w-3 h-3" />
+                            ) : (
+                              <ChevronDown className="w-3 h-3" />
+                            )}
+                          </Button>
+                        </div>
+                        {!collapsedHelpNotes[`${item.issue.id}-actions`] && (
+                          <div className="px-3 pb-3 space-y-2">
+                            {item.issue.actionItems.map((actionItem) => (
+                              <div key={actionItem.id} className="flex items-start gap-2 p-2 bg-gray-50 rounded text-sm">
+                                <div className={`w-3 h-3 rounded-sm border mt-0.5 ${actionItem.completed ? 'bg-green-500 border-green-500' : 'border-gray-300'}`} />
+                                <div className="flex-1">
+                                  <p className={actionItem.completed ? 'line-through text-gray-500' : ''}>{actionItem.title}</p>
+                                  {actionItem.description && (
+                                    <p className="text-xs text-gray-600 mt-1">{actionItem.description}</p>
+                                  )}
+                                  {actionItem.dueDate && (
+                                    <p className="text-xs text-blue-600 mt-1">Due: {new Date(actionItem.dueDate).toLocaleDateString()}</p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                            
+                            {/* Add Action Item */}
+                            {!showActionItemForm[item.issue.id] && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => toggleActionItemForm(item.issue.id)}
+                                className="w-full justify-start text-xs"
+                              >
+                                <Plus className="w-3 h-3 mr-1" />
+                                Add Action Item
+                              </Button>
+                            )}
+                            
+                            {showActionItemForm[item.issue.id] && (
+                              <ActionItemForm
+                                issueId={item.issue.id}
+                                onSubmit={createActionItem}
+                                onCancel={() => toggleActionItemForm(item.issue.id)}
+                              />
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {item.issue.notes && item.issue.notes.length > 0 && (
+                      <div className="border rounded-lg">
+                        <div className="flex items-center justify-between p-3 pb-2">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-green-600" />
+                            <h6 className="text-sm font-medium">Issue Notes</h6>
+                            <Badge variant="secondary" className="text-xs">{item.issue.notes.length}</Badge>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setCollapsedHelpNotes(prev => ({
+                              ...prev,
+                              [`${item.issue.id}-notes`]: !prev[`${item.issue.id}-notes`]
+                            }))}
+                            className="p-1 h-6 w-6"
+                          >
+                            {collapsedHelpNotes[`${item.issue.id}-notes`] ? (
+                              <ChevronRight className="w-3 h-3" />
+                            ) : (
+                              <ChevronDown className="w-3 h-3" />
+                            )}
+                          </Button>
+                        </div>
+                        {!collapsedHelpNotes[`${item.issue.id}-notes`] && (
+                          <div className="px-3 pb-3 space-y-2">
+                            {item.issue.notes.map((note) => (
+                              <div key={note.id} className="p-2 bg-gray-50 rounded text-sm">
+                                <p>{note.content}</p>
+                                <div className="flex justify-between items-center mt-1 text-xs text-gray-500">
+                                  <span>{note.author || 'Anonymous'}</span>
+                                  <span>{new Date(note.createdAt).toLocaleDateString()}</span>
+                                </div>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>

@@ -1,6 +1,8 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { AIEmailAssistant } from "@/components/AIEmailAssistant"
+import { useAuth } from "@/contexts/AuthContext"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -20,7 +22,8 @@ import {
   Plus,
   X,
   RefreshCw,
-  Copy
+  Copy,
+  Bot
 } from "lucide-react"
 
 interface EmailTemplate {
@@ -91,12 +94,20 @@ interface EmailComposerProps {
 }
 
 export function EmailComposer({ onClose, draftId }: EmailComposerProps) {
+  const { user } = useAuth()
   const [templates, setTemplates] = useState<EmailTemplate[]>([])
   const [templateData, setTemplateData] = useState<TemplateData | null>(null)
   const [selectedTemplate, setSelectedTemplate] = useState<string>("")
   const [subject, setSubject] = useState("")
   const [content, setContent] = useState("")
-  const [recipients, setRecipients] = useState<string[]>([])
+  const [recipients, setRecipients] = useState<string[]>([
+    'rebecca.freeman@deacon.com',
+    'lisa.terlson@deacon.com', 
+    'sarah.pham@deacon.com',
+    'lorrie.langlois@deacon.com',
+    'matt.jaworski@deacon.com',
+    'rachel.diel@deacon.com'
+  ])
   const [newRecipient, setNewRecipient] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingData, setIsLoadingData] = useState(false)
@@ -204,7 +215,7 @@ export function EmailComposer({ onClose, draftId }: EmailComposerProps) {
     setIsLoading(true)
     try {
       // Save draft logic here
-      console.log("Saving draft:", { subject, content, recipients })
+      console.log("Saving draft:", { from: user?.email, subject, content, recipients })
     } catch (error) {
       console.error("Error saving draft:", error)
     } finally {
@@ -216,7 +227,7 @@ export function EmailComposer({ onClose, draftId }: EmailComposerProps) {
     setIsLoading(true)
     try {
       // Send email logic here
-      console.log("Sending email:", { subject, content, recipients })
+      console.log("Sending email:", { from: user?.email, subject, content, recipients })
     } catch (error) {
       console.error("Error sending email:", error)
     } finally {
@@ -251,6 +262,10 @@ export function EmailComposer({ onClose, draftId }: EmailComposerProps) {
           <TabsTrigger value="compose">Compose</TabsTrigger>
           <TabsTrigger value="preview">Preview</TabsTrigger>
           <TabsTrigger value="data">Template Data</TabsTrigger>
+          <TabsTrigger value="ai-assistant">
+            <Bot className="w-4 h-4 mr-2" />
+            AI Assistant
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="compose" className="space-y-6">
@@ -295,6 +310,16 @@ export function EmailComposer({ onClose, draftId }: EmailComposerProps) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="from">From</Label>
+                    <Input
+                      id="from"
+                      value={user ? `${user.name} <${user.email}>` : ""}
+                      disabled
+                      className="bg-muted"
+                    />
+                  </div>
+                  
                   <div className="space-y-2">
                     <Label htmlFor="subject">Subject</Label>
                     <Input
@@ -476,6 +501,15 @@ export function EmailComposer({ onClose, draftId }: EmailComposerProps) {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="ai-assistant" className="space-y-6">
+          <AIEmailAssistant 
+            onEmailGenerated={(generatedSubject, generatedContent) => {
+              if (generatedSubject) setSubject(generatedSubject)
+              if (generatedContent) setContent(generatedContent)
+            }}
+          />
         </TabsContent>
       </Tabs>
     </div>

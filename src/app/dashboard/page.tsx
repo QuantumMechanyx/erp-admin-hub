@@ -7,6 +7,7 @@ import Link from "next/link"
 import { getIssues, getResolvedIssues, getCategories } from "@/lib/actions"
 import { IssuesList } from "@/components/issues-list"
 import { DashboardStats } from "@/components/dashboard-stats"
+import { ZendeskTicketsDrawer } from "@/components/zendesk-tickets-drawer"
 
 export const revalidate = 0
 
@@ -27,6 +28,7 @@ export default async function Dashboard() {
           </p>
         </div>
         <div className="flex gap-2">
+          <ZendeskTicketsDrawer />
           <Button asChild>
             <Link href="/dashboard/categories">
               Manage Categories

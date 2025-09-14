@@ -20,6 +20,12 @@ export async function getCurrentOrNextMeeting() {
                 category: true,
                 additionalHelpNotes: {
                   orderBy: { createdAt: "desc" }
+                },
+                actionItems: {
+                  orderBy: { priority: "desc" }
+                },
+                notes: {
+                  orderBy: { createdAt: "desc" }
                 }
               }
             }
@@ -50,6 +56,12 @@ export async function getCurrentOrNextMeeting() {
                 include: {
                   category: true,
                   additionalHelpNotes: {
+                    orderBy: { createdAt: "desc" }
+                  },
+                  actionItems: {
+                    orderBy: { priority: "desc" }
+                  },
+                  notes: {
                     orderBy: { createdAt: "desc" }
                   }
                 }
@@ -85,6 +97,12 @@ export async function getCurrentOrNextMeeting() {
                 include: {
                   category: true,
                   additionalHelpNotes: {
+                    orderBy: { createdAt: "desc" }
+                  },
+                  actionItems: {
+                    orderBy: { priority: "desc" }
+                  },
+                  notes: {
                     orderBy: { createdAt: "desc" }
                   }
                 }
@@ -122,6 +140,12 @@ export async function createDefaultMeeting() {
               include: {
                 category: true,
                 additionalHelpNotes: {
+                  orderBy: { createdAt: "desc" }
+                },
+                actionItems: {
+                  orderBy: { priority: "desc" }
+                },
+                notes: {
                   orderBy: { createdAt: "desc" }
                 }
               }
@@ -269,6 +293,12 @@ export async function createNewMeetingManually(title: string, meetingDate: Date)
                 category: true,
                 additionalHelpNotes: {
                   orderBy: { createdAt: "desc" }
+                },
+                actionItems: {
+                  orderBy: { priority: "desc" }
+                },
+                notes: {
+                  orderBy: { createdAt: "desc" }
                 }
               }
             }
@@ -394,6 +424,12 @@ export async function getAvailableIssues() {
       include: {
         category: true,
         additionalHelpNotes: {
+          orderBy: { createdAt: "desc" }
+        },
+        actionItems: {
+          orderBy: { priority: "desc" }
+        },
+        notes: {
           orderBy: { createdAt: "desc" }
         }
       },

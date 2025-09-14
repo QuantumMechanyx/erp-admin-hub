@@ -384,6 +384,13 @@ export async function getIssue(id: string) {
         additionalHelpNotes: {
           orderBy: { createdAt: "desc" },
         },
+        actionItems: {
+          orderBy: [
+            { completed: "asc" },
+            { priority: "desc" },
+            { createdAt: "desc" },
+          ],
+        },
       },
     })
 
