@@ -347,23 +347,74 @@ export async function addMultipleIssuesToMeeting(prevState: unknown, formData: F
     const meetingId = formData.get("meetingId") as string
     const issueIds = formData.getAll("issueIds") as string[]
 
-    console.log("Adding issues to meeting:", { meetingId, issueIds })
+    console.log("Starting addMultipleIssuesToMeeting:", { meetingId, issueIds, timestamp: new Date().toISOString() })
 
-    for (const issueId of issueIds) {
-      await db.meetingItem.create({
+    if (!meetingId) {
+      console.error("No meetingId provided")
+      return { error: "Meeting ID is required" }
+    }
+
+    if (!issueIds || issueIds.length === 0) {
+      console.error("No issueIds provided")
+      return { error: "At least one issue ID is required" }
+    }
+
+    // Verify meeting exists
+    const meeting = await db.meeting.findUnique({
+      where: { id: meetingId }
+    })
+
+    if (!meeting) {
+      console.error("Meeting not found:", meetingId)
+      return { error: "Meeting not found" }
+    }
+
+    console.log("Meeting found:", meeting.title)
+
+    // Check for existing meeting items to avoid duplicates
+    const existingItems = await db.meetingItem.findMany({
+      where: {
+        meetingId,
+        issueId: { in: issueIds }
+      }
+    })
+
+    const existingIssueIds = existingItems.map(item => item.issueId)
+    const newIssueIds = issueIds.filter(id => !existingIssueIds.includes(id))
+
+    console.log("Existing items:", existingIssueIds)
+    console.log("New items to add:", newIssueIds)
+
+    const createdItems = []
+    for (const issueId of newIssueIds) {
+      const item = await db.meetingItem.create({
         data: {
           meetingId,
           issueId,
           carriedOver: false
         }
       })
+      createdItems.push(item)
+      console.log("Created meeting item:", item.id)
     }
 
+    console.log("Successfully added issues to meeting. Created items:", createdItems.length)
+
+    // Revalidate multiple paths to ensure UI updates
     revalidatePath("/meetings")
-    return { success: true }
+    revalidatePath("/")
+    
+    return { 
+      success: true, 
+      message: `Added ${createdItems.length} issues to meeting${existingIssueIds.length > 0 ? ` (${existingIssueIds.length} already existed)` : ''}`
+    }
   } catch (error) {
     console.error("Error adding issues to meeting:", error)
-    return { error: "Failed to add issues to meeting" }
+    console.error("Error details:", {
+      message: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined
+    })
+    return { error: `Failed to add issues to meeting: ${error instanceof Error ? error.message : "Unknown error"}` }
   }
 }
 
