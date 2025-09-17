@@ -30,15 +30,22 @@ interface ProcessedTicket {
 
 export async function POST(request: NextRequest) {
   try {
+    console.log('AI Processing request received')
+    
     if (!isOpenAIEnabled()) {
+      console.log('OpenAI not enabled, API key missing')
       return NextResponse.json(
         { error: "AI features are disabled. OpenAI API key not configured." },
         { status: 503 }
       )
     }
 
+    console.log('OpenAI is enabled')
+
     const body = await request.json()
     const { tickets, mode = "single" } = body
+
+    console.log('Processing tickets:', Array.isArray(tickets) ? tickets.length : 1, 'mode:', mode)
 
     if (!tickets || (Array.isArray(tickets) && tickets.length === 0)) {
       return NextResponse.json(
@@ -49,11 +56,14 @@ export async function POST(request: NextRequest) {
 
     const openai = getOpenAIClient()
     if (!openai) {
+      console.log('Failed to get OpenAI client')
       return NextResponse.json(
         { error: "Failed to initialize OpenAI client" },
         { status: 500 }
       )
     }
+
+    console.log('OpenAI client initialized successfully')
 
     // Get categories for context
     const categories = await prisma.category.findMany({

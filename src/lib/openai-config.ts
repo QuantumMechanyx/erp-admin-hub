@@ -8,10 +8,20 @@ export function initializeOpenAI() {
     return null
   }
 
+  // Debug logging for production
+  console.log('OpenAI API key found, length:', process.env.OPENAI_API_KEY.length)
+  console.log('OpenAI API key starts with:', process.env.OPENAI_API_KEY.substring(0, 20) + '...')
+
   if (!openai) {
-    openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    })
+    try {
+      openai = new OpenAI({
+        apiKey: process.env.OPENAI_API_KEY,
+      })
+      console.log('OpenAI client initialized successfully')
+    } catch (error) {
+      console.error('Failed to initialize OpenAI client:', error)
+      return null
+    }
   }
 
   return openai
