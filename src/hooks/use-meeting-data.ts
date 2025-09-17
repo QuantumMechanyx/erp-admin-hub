@@ -50,7 +50,9 @@ export function useMeetingData(initialMeeting: Meeting) {
   const [showActionItemForm, setShowActionItemForm] = useState<Record<string, boolean>>({})
 
   const refreshMeeting = useCallback(() => {
+    console.log("refreshMeeting called - triggering router.refresh()")
     router.refresh()
+    console.log("refreshMeeting - router.refresh() completed")
   }, [router])
 
   const updateMeetingData = useCallback((newMeeting: Meeting) => {

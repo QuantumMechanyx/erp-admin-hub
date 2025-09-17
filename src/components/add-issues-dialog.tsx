@@ -77,12 +77,32 @@ export function AddIssuesDialog({
 
   // Close dialog on successful submission
   useEffect(() => {
+    console.log("AddIssuesDialog useEffect triggered:", { 
+      success: state?.success, 
+      error: state?.error,
+      timestamp: new Date().toISOString()
+    })
+    
     if (state?.success) {
+      console.log("AddIssuesDialog: Success detected, calling onSuccess callback")
       setSelectedIssueIds([])
-      onSuccess?.() // Call success callback to refresh data
+      
+      if (onSuccess) {
+        console.log("AddIssuesDialog: Calling onSuccess callback")
+        onSuccess()
+        console.log("AddIssuesDialog: onSuccess callback completed")
+      } else {
+        console.warn("AddIssuesDialog: No onSuccess callback provided")
+      }
+      
+      console.log("AddIssuesDialog: Closing dialog")
       onClose()
     }
-  }, [state?.success, onClose, onSuccess])
+    
+    if (state?.error) {
+      console.error("AddIssuesDialog: Error detected:", state.error)
+    }
+  }, [state?.success, state?.error, onClose, onSuccess])
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
