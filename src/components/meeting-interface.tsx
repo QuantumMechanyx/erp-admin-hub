@@ -174,6 +174,18 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
     return text
   }
 
+  // Filter out Zendesk import messages
+  const isZendeskImportNote = (content: string) => {
+    return content.includes("Imported from Zendesk Ticket") && 
+           content.includes("Original Requester:") && 
+           content.includes("Zendesk Status:") && 
+           content.includes("Zendesk Priority:")
+  }
+
+  const filterRelevantNotes = (notes: any[]) => {
+    return notes.filter(note => !isZendeskImportNote(note.content))
+  }
+
   const updateItemDiscussionNotes = (itemId: string, notes: string) => {
     const formattedNotes = formatText(notes)
     setItemDiscussionNotes(prev => ({
@@ -603,45 +615,6 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
                       )}
                     </div>
                   )}
-                  {item.issue.notes && item.issue.notes.length > 0 && (
-                    <div className="border rounded-lg">
-                      <div className="flex items-center justify-between p-3 pb-2">
-                        <div className="flex items-center gap-2">
-                          <FileText className="w-4 h-4 text-green-600" />
-                          <h6 className="text-sm font-medium">Issue Notes</h6>
-                          <Badge variant="secondary" className="text-xs">{item.issue.notes.length}</Badge>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setCollapsedHelpNotes(prev => ({
-                            ...prev,
-                            [`${item.issue.id}-notes`]: !prev[`${item.issue.id}-notes`]
-                          }))}
-                          className="p-1 h-6 w-6"
-                        >
-                          {collapsedHelpNotes[`${item.issue.id}-notes`] ? (
-                            <ChevronRight className="w-3 h-3" />
-                          ) : (
-                            <ChevronDown className="w-3 h-3" />
-                          )}
-                        </Button>
-                      </div>
-                      {!collapsedHelpNotes[`${item.issue.id}-notes`] && (
-                        <div className="px-3 pb-3 space-y-2">
-                          {item.issue.notes.map((note) => (
-                            <div key={note.id} className="p-2 bg-gray-50 rounded text-sm">
-                              <p>{note.content}</p>
-                              <div className="flex justify-between items-center mt-1 text-xs text-gray-500">
-                                <span>{note.author || 'Anonymous'}</span>
-                                <span>{new Date(note.createdAt).toLocaleDateString()}</span>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  )}
                   {item.issue.cmicTicketNumber && (
                     <div className="border rounded-lg">
                       <div className="flex items-center justify-between p-3 pb-2">
@@ -693,6 +666,45 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
                       className="min-h-[60px] text-sm"
                     />
                   </div>
+                  {item.issue.notes && filterRelevantNotes(item.issue.notes).length > 0 && (
+                    <div className="border rounded-lg">
+                      <div className="flex items-center justify-between p-3 pb-2">
+                        <div className="flex items-center gap-2">
+                          <FileText className="w-4 h-4 text-green-600" />
+                          <h6 className="text-sm font-medium">Issue Notes</h6>
+                          <Badge variant="secondary" className="text-xs">{filterRelevantNotes(item.issue.notes).length}</Badge>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setCollapsedHelpNotes(prev => ({
+                            ...prev,
+                            [`${item.issue.id}-notes`]: !prev[`${item.issue.id}-notes`]
+                          }))}
+                          className="p-1 h-6 w-6"
+                        >
+                          {collapsedHelpNotes[`${item.issue.id}-notes`] ? (
+                            <ChevronRight className="w-3 h-3" />
+                          ) : (
+                            <ChevronDown className="w-3 h-3" />
+                          )}
+                        </Button>
+                      </div>
+                      {!collapsedHelpNotes[`${item.issue.id}-notes`] && (
+                        <div className="px-3 pb-3 space-y-2">
+                          {filterRelevantNotes(item.issue.notes).map((note) => (
+                            <div key={note.id} className="p-2 bg-gray-50 rounded text-sm">
+                              <p>{note.content}</p>
+                              <div className="flex justify-between items-center mt-1 text-xs text-gray-500">
+                                <span>{note.author || 'Anonymous'}</span>
+                                <span>{new Date(note.createdAt).toLocaleDateString()}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
               </div>
@@ -847,45 +859,6 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
                         )}
                       </div>
                     )}
-                    {item.issue.notes && item.issue.notes.length > 0 && (
-                      <div className="border rounded-lg">
-                        <div className="flex items-center justify-between p-3 pb-2">
-                          <div className="flex items-center gap-2">
-                            <FileText className="w-4 h-4 text-green-600" />
-                            <h6 className="text-sm font-medium">Issue Notes</h6>
-                            <Badge variant="secondary" className="text-xs">{item.issue.notes.length}</Badge>
-                          </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setCollapsedHelpNotes(prev => ({
-                              ...prev,
-                              [`${item.issue.id}-notes`]: !prev[`${item.issue.id}-notes`]
-                            }))}
-                            className="p-1 h-6 w-6"
-                          >
-                            {collapsedHelpNotes[`${item.issue.id}-notes`] ? (
-                              <ChevronRight className="w-3 h-3" />
-                            ) : (
-                              <ChevronDown className="w-3 h-3" />
-                            )}
-                          </Button>
-                        </div>
-                        {!collapsedHelpNotes[`${item.issue.id}-notes`] && (
-                          <div className="px-3 pb-3 space-y-2">
-                            {item.issue.notes.map((note) => (
-                              <div key={note.id} className="p-2 bg-gray-50 rounded text-sm">
-                                <p>{note.content}</p>
-                                <div className="flex justify-between items-center mt-1 text-xs text-gray-500">
-                                  <span>{note.author || 'Anonymous'}</span>
-                                  <span>{new Date(note.createdAt).toLocaleDateString()}</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    )}
                     {item.issue.cmicTicketNumber && (
                       <div className="border rounded-lg">
                         <div className="flex items-center justify-between p-3 pb-2">
@@ -937,6 +910,45 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
                         className="min-h-[60px] text-sm"
                       />
                     </div>
+                    {item.issue.notes && filterRelevantNotes(item.issue.notes).length > 0 && (
+                      <div className="border rounded-lg">
+                        <div className="flex items-center justify-between p-3 pb-2">
+                          <div className="flex items-center gap-2">
+                            <FileText className="w-4 h-4 text-green-600" />
+                            <h6 className="text-sm font-medium">Issue Notes</h6>
+                            <Badge variant="secondary" className="text-xs">{filterRelevantNotes(item.issue.notes).length}</Badge>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setCollapsedHelpNotes(prev => ({
+                              ...prev,
+                              [`${item.issue.id}-notes`]: !prev[`${item.issue.id}-notes`]
+                            }))}
+                            className="p-1 h-6 w-6"
+                          >
+                            {collapsedHelpNotes[`${item.issue.id}-notes`] ? (
+                              <ChevronRight className="w-3 h-3" />
+                            ) : (
+                              <ChevronDown className="w-3 h-3" />
+                            )}
+                          </Button>
+                        </div>
+                        {!collapsedHelpNotes[`${item.issue.id}-notes`] && (
+                          <div className="px-3 pb-3 space-y-2">
+                            {filterRelevantNotes(item.issue.notes).map((note) => (
+                              <div key={note.id} className="p-2 bg-gray-50 rounded text-sm">
+                                <p>{note.content}</p>
+                                <div className="flex justify-between items-center mt-1 text-xs text-gray-500">
+                                  <span>{note.author || 'Anonymous'}</span>
+                                  <span>{new Date(note.createdAt).toLocaleDateString()}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
