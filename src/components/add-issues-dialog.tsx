@@ -26,6 +26,7 @@ type Issue = {
 interface AddIssuesDialogProps {
   isOpen: boolean
   onClose: () => void
+  onSuccess?: () => void
   meetingId: string
   availableIssues: Issue[]
   currentIssueIds: string[]
@@ -34,6 +35,7 @@ interface AddIssuesDialogProps {
 export function AddIssuesDialog({ 
   isOpen, 
   onClose, 
+  onSuccess,
   meetingId, 
   availableIssues, 
   currentIssueIds
@@ -77,9 +79,10 @@ export function AddIssuesDialog({
   useEffect(() => {
     if (state?.success) {
       setSelectedIssueIds([])
+      onSuccess?.() // Call success callback to refresh data
       onClose()
     }
-  }, [state?.success, onClose])
+  }, [state?.success, onClose, onSuccess])
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>

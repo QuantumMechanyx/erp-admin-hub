@@ -17,11 +17,13 @@ import {
   Play,
   Square,
   CheckSquare,
-  FileText
+  FileText,
+  Link
 } from "lucide-react"
 import { AddIssuesDialog } from "@/components/add-issues-dialog"
 import { AdditionalHelpNotes } from "@/components/additional-help-notes-simple"
 import { ActionItemForm } from "@/components/action-item-form"
+import { CmicNotes } from "@/components/cmic-notes-simple"
 import { useMeetingData } from "@/hooks/use-meeting-data"
 import { 
   removeIssueFromMeeting, 
@@ -56,6 +58,13 @@ type Note = {
   createdAt: Date
 }
 
+type CmicNote = {
+  id: string
+  content: string
+  author?: string | null
+  createdAt: Date
+}
+
 type Meeting = {
   id: string
   title: string
@@ -77,6 +86,10 @@ type Meeting = {
       additionalHelpNotes?: AdditionalHelpNote[]
       actionItems?: ActionItem[]
       notes?: Note[]
+      cmicNotes?: CmicNote[]
+      cmicTicketNumber?: string | null
+      cmicTicketClosed: boolean
+      cmicTicketOpened?: Date | null
       priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT"
       status: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED"
       category?: { name: string } | null
@@ -117,10 +130,12 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
       meeting.meetingItems.flatMap(item => [
         [item.issue.id, true], // Additional help notes collapsed
         [`${item.issue.id}-actions`, true], // Action items collapsed
-        [`${item.issue.id}-notes`, true] // Notes collapsed
+        [`${item.issue.id}-notes`, true], // Notes collapsed
+        [`${item.issue.id}-cmic`, true] // CMiC ticket collapsed
       ])
     )
   )
+  const [generalNotesCollapsed, setGeneralNotesCollapsed] = useState(true)
   
   // Meeting auto-end timers and settings
   const [lastActivity, setLastActivity] = useState(Date.now())
@@ -152,8 +167,7 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
 
   const handleAddIssuesDialogClose = useCallback(() => {
     setShowAddIssuesDialog(false)
-    refreshMeeting()
-  }, [refreshMeeting])
+  }, [])
 
 
   const formatText = (text: string) => {
@@ -628,6 +642,48 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
                       )}
                     </div>
                   )}
+                  {item.issue.cmicTicketNumber && (
+                    <div className="border rounded-lg">
+                      <div className="flex items-center justify-between p-3 pb-2">
+                        <div className="flex items-center gap-2">
+                          <Link className="w-4 h-4 text-purple-600" />
+                          <h6 className="text-sm font-medium">CMiC Ticket</h6>
+                          <Badge variant="secondary" className="text-xs">#{item.issue.cmicTicketNumber}</Badge>
+                          <Badge variant={item.issue.cmicTicketClosed ? "default" : "secondary"} className="text-xs">
+                            {item.issue.cmicTicketClosed ? "Closed" : "Open"}
+                          </Badge>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setCollapsedHelpNotes(prev => ({
+                            ...prev,
+                            [`${item.issue.id}-cmic`]: !prev[`${item.issue.id}-cmic`]
+                          }))}
+                          className="p-1 h-6 w-6"
+                        >
+                          {collapsedHelpNotes[`${item.issue.id}-cmic`] ? (
+                            <ChevronRight className="w-3 h-3" />
+                          ) : (
+                            <ChevronDown className="w-3 h-3" />
+                          )}
+                        </Button>
+                      </div>
+                      {!collapsedHelpNotes[`${item.issue.id}-cmic`] && (
+                        <div className="px-3 pb-3">
+                          {item.issue.cmicTicketOpened && (
+                            <p className="text-xs text-gray-500 mb-2">
+                              Opened: {new Date(item.issue.cmicTicketOpened).toLocaleDateString()}
+                            </p>
+                          )}
+                          <CmicNotes 
+                            issueId={item.issue.id} 
+                            notes={item.issue.cmicNotes || []}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
                   <div className="space-y-2 pt-2 border-t">
                     <h5 className="font-medium text-xs text-muted-foreground">Today&apos;s Discussion:</h5>
                     <Textarea
@@ -830,6 +886,48 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
                         )}
                       </div>
                     )}
+                    {item.issue.cmicTicketNumber && (
+                      <div className="border rounded-lg">
+                        <div className="flex items-center justify-between p-3 pb-2">
+                          <div className="flex items-center gap-2">
+                            <Link className="w-4 h-4 text-purple-600" />
+                            <h6 className="text-sm font-medium">CMiC Ticket</h6>
+                            <Badge variant="secondary" className="text-xs">#{item.issue.cmicTicketNumber}</Badge>
+                            <Badge variant={item.issue.cmicTicketClosed ? "default" : "secondary"} className="text-xs">
+                              {item.issue.cmicTicketClosed ? "Closed" : "Open"}
+                            </Badge>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setCollapsedHelpNotes(prev => ({
+                              ...prev,
+                              [`${item.issue.id}-cmic`]: !prev[`${item.issue.id}-cmic`]
+                            }))}
+                            className="p-1 h-6 w-6"
+                          >
+                            {collapsedHelpNotes[`${item.issue.id}-cmic`] ? (
+                              <ChevronRight className="w-3 h-3" />
+                            ) : (
+                              <ChevronDown className="w-3 h-3" />
+                            )}
+                          </Button>
+                        </div>
+                        {!collapsedHelpNotes[`${item.issue.id}-cmic`] && (
+                          <div className="px-3 pb-3">
+                            {item.issue.cmicTicketOpened && (
+                              <p className="text-xs text-gray-500 mb-2">
+                                Opened: {new Date(item.issue.cmicTicketOpened).toLocaleDateString()}
+                              </p>
+                            )}
+                            <CmicNotes 
+                              issueId={item.issue.id} 
+                              notes={item.issue.cmicNotes || []}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
                     <div className="space-y-2 pt-2 border-t">
                       <h5 className="font-medium text-xs text-muted-foreground">Discussion Notes:</h5>
                       <Textarea
@@ -856,34 +954,42 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <div>
+            <div className="flex items-center gap-2 cursor-pointer" onClick={() => setGeneralNotesCollapsed(!generalNotesCollapsed)}>
+              <MessageSquare className="w-5 h-5" />
               <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="w-5 h-5" />
                 General Meeting Notes
+                {generalNotesCollapsed ? (
+                  <ChevronRight className="w-4 h-4" />
+                ) : (
+                  <ChevronDown className="w-4 h-4" />
+                )}
               </CardTitle>
-              <CardDescription>
-                Additional notes, action items, and decisions made
-              </CardDescription>
             </div>
             <Button onClick={saveAllNotes} variant="outline" size="sm">
               <Save className="w-4 h-4 mr-2" />
               Save All Notes
             </Button>
           </div>
+          <CardDescription>
+            Additional notes, action items, and decisions made
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <Textarea
-            value={generalNotes}
-            onChange={(e) => updateGeneralNotes(e.target.value)}
-            placeholder="Add general meeting notes, action items, decisions..."
-            className="min-h-[120px]"
-          />
-        </CardContent>
+        {!generalNotesCollapsed && (
+          <CardContent>
+            <Textarea
+              value={generalNotes}
+              onChange={(e) => updateGeneralNotes(e.target.value)}
+              placeholder="Add general meeting notes, action items, decisions..."
+              className="min-h-[120px]"
+            />
+          </CardContent>
+        )}
       </Card>
 
       <AddIssuesDialog
         isOpen={showAddIssuesDialog}
         onClose={handleAddIssuesDialogClose}
+        onSuccess={refreshMeeting}
         meetingId={meeting.id}
         availableIssues={availableIssues}
         currentIssueIds={meeting.meetingItems.map(item => item.issueId)}

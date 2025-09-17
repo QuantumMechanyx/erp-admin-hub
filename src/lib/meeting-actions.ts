@@ -26,6 +26,9 @@ export async function getCurrentOrNextMeeting() {
                 },
                 notes: {
                   orderBy: { createdAt: "desc" }
+                },
+                cmicNotes: {
+                  orderBy: { createdAt: "desc" }
                 }
               }
             }
@@ -146,6 +149,9 @@ export async function createDefaultMeeting() {
                   orderBy: { priority: "desc" }
                 },
                 notes: {
+                  orderBy: { createdAt: "desc" }
+                },
+                cmicNotes: {
                   orderBy: { createdAt: "desc" }
                 }
               }
@@ -299,6 +305,9 @@ export async function createNewMeetingManually(title: string, meetingDate: Date)
                 },
                 notes: {
                   orderBy: { createdAt: "desc" }
+                },
+                cmicNotes: {
+                  orderBy: { createdAt: "desc" }
                 }
               }
             }
@@ -428,6 +437,9 @@ export async function getAvailableIssues() {
           orderBy: { priority: "desc" }
         },
         notes: {
+          orderBy: { createdAt: "desc" }
+        },
+        cmicNotes: {
           orderBy: { createdAt: "desc" }
         }
       },
