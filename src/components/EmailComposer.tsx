@@ -348,64 +348,82 @@ export function EmailComposer({ onClose, draftId }: EmailComposerProps) {
             </div>
 
             <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Recipients</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="flex gap-2">
-                    <Input
-                      value={newRecipient}
-                      onChange={(e) => setNewRecipient(e.target.value)}
-                      placeholder="email@example.com"
-                      onKeyPress={(e) => e.key === 'Enter' && addRecipient()}
-                    />
-                    <Button size="sm" onClick={addRecipient}>
-                      <Plus className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  
-                  <div className="space-y-2">
-                    {recipients.map((recipient) => (
-                      <div key={recipient} className="flex items-center justify-between p-2 bg-muted rounded">
-                        <span className="text-sm">{recipient}</span>
-                        <Button 
-                          size="sm" 
-                          variant="ghost" 
-                          onClick={() => removeRecipient(recipient)}
-                        >
-                          <X className="w-3 h-3" />
+              {/* Recipients and Actions sections temporarily hidden - will be re-enabled when ready for email sending */}
+              {false && (
+                <>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Recipients</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="flex gap-2">
+                        <Input
+                          value={newRecipient}
+                          onChange={(e) => setNewRecipient(e.target.value)}
+                          placeholder="email@example.com"
+                          onKeyPress={(e) => e.key === 'Enter' && addRecipient()}
+                        />
+                        <Button size="sm" onClick={addRecipient}>
+                          <Plus className="w-4 h-4" />
                         </Button>
                       </div>
-                    ))}
-                  </div>
-                  
-                  {recipients.length === 0 && (
-                    <p className="text-center text-muted-foreground text-sm py-4">
-                      No recipients added yet
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
+                      
+                      <div className="space-y-2">
+                        {recipients.map((recipient) => (
+                          <div key={recipient} className="flex items-center justify-between p-2 bg-muted rounded">
+                            <span className="text-sm">{recipient}</span>
+                            <Button 
+                              size="sm" 
+                              variant="ghost" 
+                              onClick={() => removeRecipient(recipient)}
+                            >
+                              <X className="w-3 h-3" />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {recipients.length === 0 && (
+                        <p className="text-center text-muted-foreground text-sm py-4">
+                          No recipients added yet
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle>Actions</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <Button onClick={handleSave} disabled={isLoading} className="w-full">
-                    <Save className="w-4 h-4 mr-2" />
-                    Save Draft
-                  </Button>
-                  <Button 
-                    onClick={handleSend} 
-                    disabled={isLoading || recipients.length === 0}
-                    variant="default"
-                    className="w-full"
-                  >
-                    <Send className="w-4 h-4 mr-2" />
-                    Send Email
-                  </Button>
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Actions</CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-2">
+                      <Button onClick={handleSave} disabled={isLoading} className="w-full">
+                        <Save className="w-4 h-4 mr-2" />
+                        Save Draft
+                      </Button>
+                      <Button 
+                        onClick={handleSend} 
+                        disabled={isLoading || recipients.length === 0}
+                        variant="default"
+                        className="w-full"
+                      >
+                        <Send className="w-4 h-4 mr-2" />
+                        Send Email
+                      </Button>
+                    </CardContent>
+                  </Card>
+                </>
+              )}
+              
+              {/* Placeholder card to indicate future functionality */}
+              <Card className="border-dashed">
+                <CardContent className="pt-6">
+                  <div className="text-center space-y-2">
+                    <Mail className="w-8 h-8 mx-auto text-muted-foreground" />
+                    <p className="text-sm font-medium">Email Sending Coming Soon</p>
+                    <p className="text-xs text-muted-foreground">
+                      Recipients and sending functionality will be enabled in a future update
+                    </p>
+                  </div>
                 </CardContent>
               </Card>
             </div>
