@@ -117,8 +117,11 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
 
   const handleRemoveIssue = async (issueId: string) => {
     try {
+      console.log("handleRemoveIssue: Starting removal for issue:", issueId)
       await removeIssueFromMeeting(meeting.id, issueId)
+      console.log("handleRemoveIssue: Issue removed successfully, calling refreshMeeting")
       refreshMeeting()
+      console.log("handleRemoveIssue: refreshMeeting called")
     } catch (error) {
       console.error("Failed to remove issue:", error)
     }

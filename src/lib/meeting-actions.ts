@@ -420,16 +420,55 @@ export async function addMultipleIssuesToMeeting(prevState: unknown, formData: F
 
 export async function removeIssueFromMeeting(meetingId: string, issueId: string) {
   try {
-    await db.meetingItem.deleteMany({
+    console.log("Starting removeIssueFromMeeting:", { meetingId, issueId, timestamp: new Date().toISOString() })
+
+    // Verify meeting exists
+    const meeting = await db.meeting.findUnique({
+      where: { id: meetingId }
+    })
+
+    if (!meeting) {
+      console.error("Meeting not found:", meetingId)
+      throw new Error("Meeting not found")
+    }
+
+    console.log("Meeting found:", meeting.title)
+
+    // Check if meeting item exists before deletion
+    const existingItem = await db.meetingItem.findFirst({
       where: {
         meetingId,
         issueId
       }
     })
 
+    if (!existingItem) {
+      console.warn("Meeting item not found for removal:", { meetingId, issueId })
+      return // No error, just exit since it's already not in the meeting
+    }
+
+    console.log("Removing meeting item:", existingItem.id)
+
+    const result = await db.meetingItem.deleteMany({
+      where: {
+        meetingId,
+        issueId
+      }
+    })
+
+    console.log("Meeting item removal result:", { deletedCount: result.count })
+
+    // Revalidate multiple paths to ensure UI updates
     revalidatePath("/meetings")
+    revalidatePath("/")
+
+    console.log("Successfully removed issue from meeting. Revalidation completed.")
   } catch (error) {
     console.error("Error removing issue from meeting:", error)
+    console.error("Error details:", {
+      message: error instanceof Error ? error.message : "Unknown error",
+      stack: error instanceof Error ? error.stack : undefined
+    })
     throw new Error("Failed to remove issue from meeting")
   }
 }
