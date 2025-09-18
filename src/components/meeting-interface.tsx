@@ -120,21 +120,15 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
     try {
       console.log("handleRemoveIssue: Starting removal for issue:", issueId)
       
-      // Optimistically update the UI by removing the item from local state
-      const updatedMeeting = {
-        ...meeting,
-        meetingItems: meeting.meetingItems.filter(item => item.issueId !== issueId)
-      }
-      updateMeetingData(updatedMeeting)
-      console.log("handleRemoveIssue: Optimistically updated UI")
-      
-      // Then perform the server action
+      // Perform the server action
       await removeIssueFromMeeting(meeting.id, issueId)
       console.log("handleRemoveIssue: Issue removed successfully from server")
+      
+      // Refresh to show updated state
+      refreshMeeting()
+      console.log("handleRemoveIssue: refreshMeeting called")
     } catch (error) {
       console.error("Failed to remove issue:", error)
-      // On error, refresh to restore correct state
-      refreshMeeting()
     }
   }
   
@@ -186,29 +180,10 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
   const handleAddIssuesSuccess = useCallback((addedIssues: any[]) => {
     console.log("handleAddIssuesSuccess: Issues added successfully:", addedIssues.map(i => i.title))
     
-    // Optimistically add the issues to the local meeting state
-    const newMeetingItems = addedIssues.map(issue => ({
-      id: `temp-${Date.now()}-${issue.id}`, // Temporary ID for the meeting item
-      issueId: issue.id,
-      discussionNotes: null,
-      carriedOver: false,
-      issue: {
-        ...issue,
-        additionalHelpNotes: [],
-        actionItems: [],
-        notes: [],
-        cmicNotes: [],
-        cmicTicketClosed: false
-      }
-    }))
-    
-    const updatedMeeting = {
-      ...meeting,
-      meetingItems: [...meeting.meetingItems, ...newMeetingItems]
-    }
-    updateMeetingData(updatedMeeting)
-    console.log("handleAddIssuesSuccess: Optimistically updated UI with", addedIssues.length, "new issues")
-  }, [meeting, updateMeetingData])
+    // Refresh to show updated state
+    refreshMeeting()
+    console.log("handleAddIssuesSuccess: refreshMeeting called")
+  }, [refreshMeeting])
 
 
   const formatText = (text: string) => {
