@@ -26,7 +26,7 @@ type Issue = {
 interface AddIssuesDialogProps {
   isOpen: boolean
   onClose: () => void
-  onSuccess?: () => void
+  onSuccess?: (addedIssues: Issue[]) => void
   meetingId: string
   availableIssues: Issue[]
   currentIssueIds: string[]
@@ -85,11 +85,16 @@ export function AddIssuesDialog({
     
     if (state?.success) {
       console.log("AddIssuesDialog: Success detected, calling onSuccess callback")
+      
+      // Get the full issue objects for the selected issues
+      const addedIssues = availableIssues.filter(issue => selectedIssueIds.includes(issue.id))
+      console.log("AddIssuesDialog: Added issues:", addedIssues.map(i => i.title))
+      
       setSelectedIssueIds([])
       
       if (onSuccess) {
-        console.log("AddIssuesDialog: Calling onSuccess callback")
-        onSuccess()
+        console.log("AddIssuesDialog: Calling onSuccess callback with", addedIssues.length, "issues")
+        onSuccess(addedIssues)
         console.log("AddIssuesDialog: onSuccess callback completed")
       } else {
         console.warn("AddIssuesDialog: No onSuccess callback provided")
@@ -102,7 +107,7 @@ export function AddIssuesDialog({
     if (state?.error) {
       console.error("AddIssuesDialog: Error detected:", state.error)
     }
-  }, [state?.success, state?.error, onClose, onSuccess])
+  }, [state?.success, state?.error, onClose, onSuccess, selectedIssueIds, availableIssues])
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>

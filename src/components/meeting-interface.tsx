@@ -187,11 +187,36 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
     setShowAddIssuesDialog(false)
   }, [])
 
-  const handleAddIssuesSuccess = useCallback(() => {
-    console.log("handleAddIssuesSuccess: Issues added successfully, calling refreshMeeting")
+  const handleAddIssuesSuccess = useCallback((addedIssues: any[]) => {
+    console.log("handleAddIssuesSuccess: Issues added successfully:", addedIssues.map(i => i.title))
+    
+    // Optimistically add the issues to the local meeting state
+    const newMeetingItems = addedIssues.map(issue => ({
+      id: `temp-${Date.now()}-${issue.id}`, // Temporary ID for the meeting item
+      issueId: issue.id,
+      discussionNotes: null,
+      carriedOver: false,
+      issue: {
+        ...issue,
+        additionalHelpNotes: [],
+        actionItems: [],
+        notes: [],
+        cmicNotes: [],
+        cmicTicketClosed: false
+      }
+    }))
+    
+    const updatedMeeting = {
+      ...meeting,
+      meetingItems: [...meeting.meetingItems, ...newMeetingItems]
+    }
+    updateMeetingData(updatedMeeting)
+    console.log("handleAddIssuesSuccess: Optimistically updated UI with", addedIssues.length, "new issues")
+    
+    // Then refresh to ensure server state is synced
     refreshMeeting()
     console.log("handleAddIssuesSuccess: refreshMeeting called")
-  }, [refreshMeeting])
+  }, [meeting, updateMeetingData, refreshMeeting])
 
 
   const formatText = (text: string) => {
