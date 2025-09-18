@@ -112,18 +112,33 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
     showActionItemForm,
     toggleActionItemForm,
     createActionItem,
-    refreshMeeting
+    refreshMeeting,
+    updateMeetingData
   } = useMeetingData(initialMeeting)
 
   const handleRemoveIssue = async (issueId: string) => {
     try {
       console.log("handleRemoveIssue: Starting removal for issue:", issueId)
+      
+      // Optimistically update the UI by removing the item from local state
+      const updatedMeeting = {
+        ...meeting,
+        meetingItems: meeting.meetingItems.filter(item => item.issueId !== issueId)
+      }
+      updateMeetingData(updatedMeeting)
+      console.log("handleRemoveIssue: Optimistically updated UI")
+      
+      // Then perform the server action
       await removeIssueFromMeeting(meeting.id, issueId)
-      console.log("handleRemoveIssue: Issue removed successfully, calling refreshMeeting")
+      console.log("handleRemoveIssue: Issue removed successfully from server")
+      
+      // Refresh to ensure server state is synced (in case of any discrepancies)
       refreshMeeting()
       console.log("handleRemoveIssue: refreshMeeting called")
     } catch (error) {
       console.error("Failed to remove issue:", error)
+      // On error, refresh to restore correct state
+      refreshMeeting()
     }
   }
   
@@ -171,6 +186,12 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
   const handleAddIssuesDialogClose = useCallback(() => {
     setShowAddIssuesDialog(false)
   }, [])
+
+  const handleAddIssuesSuccess = useCallback(() => {
+    console.log("handleAddIssuesSuccess: Issues added successfully, calling refreshMeeting")
+    refreshMeeting()
+    console.log("handleAddIssuesSuccess: refreshMeeting called")
+  }, [refreshMeeting])
 
 
   const formatText = (text: string) => {
@@ -1004,7 +1025,7 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
       <AddIssuesDialog
         isOpen={showAddIssuesDialog}
         onClose={handleAddIssuesDialogClose}
-        onSuccess={refreshMeeting}
+        onSuccess={handleAddIssuesSuccess}
         meetingId={meeting.id}
         availableIssues={availableIssues}
         currentIssueIds={meeting.meetingItems.map(item => item.issueId)}
