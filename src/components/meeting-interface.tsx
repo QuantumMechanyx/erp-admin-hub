@@ -177,14 +177,6 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
     setShowAddIssuesDialog(false)
   }, [])
 
-  const handleAddIssuesSuccess = useCallback((addedIssues: any[]) => {
-    console.log("handleAddIssuesSuccess: Issues added successfully:", addedIssues.map(i => i.title))
-    
-    // Refresh to show updated state
-    refreshMeeting()
-    console.log("handleAddIssuesSuccess: refreshMeeting called")
-  }, [refreshMeeting])
-
 
   const formatText = (text: string) => {
     return text
@@ -1017,7 +1009,6 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
       <AddIssuesDialog
         isOpen={showAddIssuesDialog}
         onClose={handleAddIssuesDialogClose}
-        onSuccess={handleAddIssuesSuccess}
         meetingId={meeting.id}
         availableIssues={availableIssues}
         currentIssueIds={meeting.meetingItems.map(item => item.issueId)}

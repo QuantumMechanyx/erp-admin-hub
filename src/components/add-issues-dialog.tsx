@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useActionState, useEffect, useCallback } from "react"
+import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -40,6 +41,7 @@ export function AddIssuesDialog({
   availableIssues, 
   currentIssueIds
 }: AddIssuesDialogProps) {
+  const router = useRouter()
   const [state, formAction, isPending] = useActionState(addMultipleIssuesToMeeting, null)
   const [selectedIssueIds, setSelectedIssueIds] = useState<string[]>([])
 
@@ -84,21 +86,13 @@ export function AddIssuesDialog({
     })
     
     if (state?.success) {
-      console.log("AddIssuesDialog: Success detected, calling onSuccess callback")
-      
-      // Get the full issue objects for the selected issues
-      const addedIssues = availableIssues.filter(issue => selectedIssueIds.includes(issue.id))
-      console.log("AddIssuesDialog: Added issues:", addedIssues.map(i => i.title))
+      console.log("AddIssuesDialog: Success detected, refreshing page and closing dialog")
       
       setSelectedIssueIds([])
       
-      if (onSuccess) {
-        console.log("AddIssuesDialog: Calling onSuccess callback with", addedIssues.length, "issues")
-        onSuccess(addedIssues)
-        console.log("AddIssuesDialog: onSuccess callback completed")
-      } else {
-        console.warn("AddIssuesDialog: No onSuccess callback provided")
-      }
+      // Refresh to show updated state
+      router.refresh()
+      console.log("AddIssuesDialog: router.refresh() called")
       
       console.log("AddIssuesDialog: Closing dialog")
       onClose()
@@ -107,7 +101,7 @@ export function AddIssuesDialog({
     if (state?.error) {
       console.error("AddIssuesDialog: Error detected:", state.error)
     }
-  }, [state?.success, state?.error, onClose, onSuccess])
+  }, [state?.success, state?.error, onClose, router])
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
