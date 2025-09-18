@@ -99,7 +99,7 @@ export function AddIssuesDialog({
       if (result?.success) {
         console.log("AddIssuesDialog: Success - refreshing and closing")
         setSelectedIssueIds([])
-        router.refresh()
+        window.location.reload()
         onClose()
       } else if (result?.error) {
         console.error("AddIssuesDialog: Server error:", result.error)
