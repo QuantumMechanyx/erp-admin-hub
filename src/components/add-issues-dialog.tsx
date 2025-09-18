@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useActionState, useEffect, useCallback } from "react"
+import { useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -42,8 +42,9 @@ export function AddIssuesDialog({
   currentIssueIds
 }: AddIssuesDialogProps) {
   const router = useRouter()
-  const [state, formAction, isPending] = useActionState(addMultipleIssuesToMeeting, null)
   const [selectedIssueIds, setSelectedIssueIds] = useState<string[]>([])
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const priorityColors = {
     LOW: "bg-gray-100 text-gray-800",
@@ -74,50 +75,59 @@ export function AddIssuesDialog({
 
   const handleClose = useCallback(() => {
     setSelectedIssueIds([])
+    setError(null)
     onClose()
   }, [onClose])
 
-  // Close dialog on successful submission
-  useEffect(() => {
-    console.log("AddIssuesDialog useEffect triggered:", { 
-      success: state?.success, 
-      error: state?.error,
-      timestamp: new Date().toISOString()
-    })
-    
-    if (state?.success) {
-      console.log("AddIssuesDialog: Success detected, refreshing page and closing dialog")
-      
-      setSelectedIssueIds([])
-      
-      // Refresh to show updated state
-      router.refresh()
-      console.log("AddIssuesDialog: router.refresh() called")
-      
-      console.log("AddIssuesDialog: Closing dialog")
-      onClose()
+  const handleSubmit = async () => {
+    if (selectedIssueIds.length === 0) return
+
+    try {
+      setIsSubmitting(true)
+      setError(null)
+      console.log("AddIssuesDialog: Starting submission with issue IDs:", selectedIssueIds)
+
+      const formData = new FormData()
+      formData.append('meetingId', meetingId)
+      selectedIssueIds.forEach(issueId => {
+        formData.append('issueIds', issueId)
+      })
+
+      const result = await addMultipleIssuesToMeeting(null, formData)
+      console.log("AddIssuesDialog: Server action result:", result)
+
+      if (result?.success) {
+        console.log("AddIssuesDialog: Success - refreshing and closing")
+        setSelectedIssueIds([])
+        router.refresh()
+        onClose()
+      } else if (result?.error) {
+        console.error("AddIssuesDialog: Server error:", result.error)
+        setError(result.error)
+      }
+    } catch (err) {
+      console.error("AddIssuesDialog: Client error:", err)
+      setError(err instanceof Error ? err.message : 'Failed to add issues')
+    } finally {
+      setIsSubmitting(false)
     }
-    
-    if (state?.error) {
-      console.error("AddIssuesDialog: Error detected:", state.error)
-    }
-  }, [state?.success, state?.error, onClose, router])
+  }
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-        <form action={formAction}>
-          <input type="hidden" name="meetingId" value={meetingId} />
-          {selectedIssueIds.map(issueId => (
-            <input key={issueId} type="hidden" name="issueIds" value={issueId} />
-          ))}
+        <DialogHeader>
+          <DialogTitle>Add Issues to Meeting</DialogTitle>
+          <DialogDescription>
+            Select issues to add to the current meeting agenda
+          </DialogDescription>
+        </DialogHeader>
 
-          <DialogHeader>
-            <DialogTitle>Add Issues to Meeting</DialogTitle>
-            <DialogDescription>
-              Select issues to add to the current meeting agenda
-            </DialogDescription>
-          </DialogHeader>
+        {error && (
+          <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+            <p className="text-sm text-red-800">{error}</p>
+          </div>
+        )}
 
           <div className="space-y-4">
             {selectableIssues.length === 0 ? (
@@ -168,21 +178,20 @@ export function AddIssuesDialog({
             )}
           </div>
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={handleClose} disabled={isPending}>
-              Cancel
-            </Button>
-            <Button 
-              type="submit"
-              disabled={selectedIssueIds.length === 0 || isPending}
-            >
-              {isPending 
-                ? "Adding..." 
-                : `Add ${selectedIssueIds.length} Issue${selectedIssueIds.length !== 1 ? 's' : ''}`
-              }
-            </Button>
-          </DialogFooter>
-        </form>
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button 
+            onClick={handleSubmit}
+            disabled={selectedIssueIds.length === 0 || isSubmitting}
+          >
+            {isSubmitting 
+              ? "Adding..." 
+              : `Add ${selectedIssueIds.length} Issue${selectedIssueIds.length !== 1 ? 's' : ''}`
+            }
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
