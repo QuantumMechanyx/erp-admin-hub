@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { AIEmailAssistant } from "@/components/AIEmailAssistant"
 import { useAuth } from "@/contexts/AuthContext"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -111,12 +111,71 @@ export function EmailComposer({ onClose, draftId }: EmailComposerProps) {
   const [newRecipient, setNewRecipient] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [isLoadingData, setIsLoadingData] = useState(false)
+  const [currentDraftId, setCurrentDraftId] = useState<string | null>(draftId || null)
+  const [isSavingDraft, setIsSavingDraft] = useState(false)
+  const [draftSaveStatus, setDraftSaveStatus] = useState<string | null>(null)
+  const [selectedIssueIds, setSelectedIssueIds] = useState<string[]>([])
+
+  // Auto-save functionality
+  const autoSave = useCallback(async () => {
+    // Only auto-save if we have some content and it's not the first load
+    if (!subject && !content) return
+    if (isSavingDraft) return
+    
+    try {
+      const draftData = {
+        subject,
+        content,
+        recipients,
+        templateId: selectedTemplate || null,
+        issueIds: selectedIssueIds
+      }
+      
+      let response
+      if (currentDraftId) {
+        response = await fetch(`/api/email-drafts/${currentDraftId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(draftData)
+        })
+      } else {
+        response = await fetch('/api/email-drafts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(draftData)
+        })
+      }
+      
+      if (response.ok) {
+        const savedDraft = await response.json()
+        if (!currentDraftId) {
+          setCurrentDraftId(savedDraft.id)
+        }
+        setDraftSaveStatus('auto-saved')
+        setTimeout(() => setDraftSaveStatus(null), 2000)
+      }
+    } catch (error) {
+      console.error('Auto-save failed:', error)
+    }
+  }, [subject, content, recipients, selectedTemplate, selectedIssueIds, currentDraftId, isSavingDraft])
+
+  // Debounced auto-save effect
+  useEffect(() => {
+    const autoSaveTimer = setTimeout(() => {
+      autoSave()
+    }, 3000) // Auto-save 3 seconds after user stops typing
+
+    return () => clearTimeout(autoSaveTimer)
+  }, [autoSave])
 
   // Load templates and template data on mount
   useEffect(() => {
     loadTemplates()
     loadTemplateData()
-  }, [])
+    if (draftId) {
+      loadDraft(draftId)
+    }
+  }, [draftId])
 
   const loadTemplates = async () => {
     try {
@@ -215,15 +274,80 @@ export function EmailComposer({ onClose, draftId }: EmailComposerProps) {
     setRecipients(recipients.filter(r => r !== email))
   }
 
-  const handleSave = async () => {
-    setIsLoading(true)
+  const loadDraft = async (id: string) => {
     try {
-      // Save draft logic here
-      console.log("Saving draft:", { from: user?.email, subject, content, recipients })
+      const response = await fetch(`/api/email-drafts/${id}`)
+      if (!response.ok) {
+        console.error('Failed to load draft:', response.status)
+        return
+      }
+      
+      const draft = await response.json()
+      setSubject(draft.subject)
+      setContent(draft.content)
+      setSelectedTemplate(draft.templateId || "")
+      
+      if (draft.recipients) {
+        const recipientsList = JSON.parse(draft.recipients)
+        setRecipients(recipientsList)
+      }
+      
+      if (draft.emailIssues && draft.emailIssues.length > 0) {
+        const issueIds = draft.emailIssues.map((ei: any) => ei.issueId)
+        setSelectedIssueIds(issueIds)
+      }
+      
+      setCurrentDraftId(id)
     } catch (error) {
-      console.error("Error saving draft:", error)
+      console.error('Error loading draft:', error)
+    }
+  }
+
+  const handleSave = async () => {
+    setIsSavingDraft(true)
+    setDraftSaveStatus(null)
+    
+    try {
+      const draftData = {
+        subject,
+        content,
+        recipients,
+        templateId: selectedTemplate || null,
+        issueIds: selectedIssueIds
+      }
+      
+      let response
+      if (currentDraftId) {
+        // Update existing draft
+        response = await fetch(`/api/email-drafts/${currentDraftId}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(draftData)
+        })
+      } else {
+        // Create new draft
+        response = await fetch('/api/email-drafts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(draftData)
+        })
+      }
+      
+      if (!response.ok) {
+        throw new Error('Failed to save draft')
+      }
+      
+      const savedDraft = await response.json()
+      setCurrentDraftId(savedDraft.id)
+      setDraftSaveStatus('saved')
+      
+      setTimeout(() => setDraftSaveStatus(null), 3000)
+    } catch (error) {
+      console.error('Error saving draft:', error)
+      setDraftSaveStatus('error')
+      setTimeout(() => setDraftSaveStatus(null), 3000)
     } finally {
-      setIsLoading(false)
+      setIsSavingDraft(false)
     }
   }
 
@@ -403,10 +527,19 @@ export function EmailComposer({ onClose, draftId }: EmailComposerProps) {
                       <CardTitle>Actions</CardTitle>
                     </CardHeader>
                     <CardContent className="space-y-2">
-                      <Button onClick={handleSave} disabled={isLoading} className="w-full">
+                      <Button onClick={handleSave} disabled={isSavingDraft} className="w-full">
                         <Save className="w-4 h-4 mr-2" />
-                        Save Draft
+                        {isSavingDraft ? 'Saving...' : currentDraftId ? 'Update Draft' : 'Save Draft'}
                       </Button>
+                      {draftSaveStatus === 'saved' && (
+                        <p className="text-sm text-green-600 text-center">Draft saved successfully!</p>
+                      )}
+                      {draftSaveStatus === 'auto-saved' && (
+                        <p className="text-sm text-gray-500 text-center">Auto-saved</p>
+                      )}
+                      {draftSaveStatus === 'error' && (
+                        <p className="text-sm text-red-600 text-center">Failed to save draft</p>
+                      )}
                       <Button 
                         onClick={handleSend} 
                         disabled={isLoading || recipients.length === 0}

@@ -4,18 +4,38 @@ import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { EmailComposer } from "@/components/EmailComposer"
-import { Mail, FileText, Send, Plus, File } from "lucide-react"
+import { TemplateCreator } from "@/components/TemplateCreator"
+import { Mail, FileText, Plus, File } from "lucide-react"
+
+interface EmailDraft {
+  id: string
+  subject: string
+  content: string
+  recipients?: string
+  templateId?: string
+  createdAt: string
+  updatedAt: string
+  template?: {
+    name: string
+  }
+  emailIssues: Array<{
+    issue: {
+      id: string
+      title: string
+    }
+  }>
+}
 
 export default function EmailsPage() {
   const [showComposer, setShowComposer] = useState(false)
+  const [showTemplateCreator, setShowTemplateCreator] = useState(false)
+  const [selectedDraftId, setSelectedDraftId] = useState<string | null>(null)
   const [templates, setTemplates] = useState([])
-  const [drafts, setDrafts] = useState([])
-  const [sentEmails, setSentEmails] = useState([])
+  const [drafts, setDrafts] = useState<EmailDraft[]>([])
 
   useEffect(() => {
     loadTemplates()
     loadDrafts()
-    loadSentEmails()
   }, [])
 
   const loadTemplates = async () => {
@@ -40,16 +60,77 @@ export default function EmailsPage() {
   }
 
   const loadDrafts = async () => {
-    // TODO: Implement drafts loading
+    try {
+      const response = await fetch('/api/email-drafts')
+      if (!response.ok) {
+        console.error('Failed to fetch drafts:', response.status, response.statusText)
+        setDrafts([])
+        return
+      }
+      const data = await response.json()
+      if (Array.isArray(data)) {
+        setDrafts(data)
+      } else {
+        console.error('Invalid drafts response format:', data)
+        setDrafts([])
+      }
+    } catch (error) {
+      console.error('Error loading drafts:', error)
+      setDrafts([])
+    }
   }
 
-  const loadSentEmails = async () => {
-    // TODO: Implement sent emails loading
+
+  const handleEditDraft = (draftId: string) => {
+    setSelectedDraftId(draftId)
+    setShowComposer(true)
+  }
+
+  const handleDeleteDraft = async (draftId: string) => {
+    if (!confirm('Are you sure you want to delete this draft?')) {
+      return
+    }
+    
+    try {
+      const response = await fetch(`/api/email-drafts/${draftId}`, {
+        method: 'DELETE'
+      })
+      
+      if (response.ok) {
+        setDrafts(drafts.filter(draft => draft.id !== draftId))
+      } else {
+        console.error('Failed to delete draft')
+      }
+    } catch (error) {
+      console.error('Error deleting draft:', error)
+    }
+  }
+
+  const handleCloseComposer = () => {
+    setShowComposer(false)
+    setSelectedDraftId(null)
+    // Reload drafts to get updated list
+    loadDrafts()
+  }
+
+  const handleCloseTemplateCreator = () => {
+    setShowTemplateCreator(false)
+    // Reload templates to get updated list
+    loadTemplates()
   }
 
   if (showComposer) {
     return (
-      <EmailComposer onClose={() => setShowComposer(false)} />
+      <EmailComposer 
+        onClose={handleCloseComposer} 
+        draftId={selectedDraftId || undefined}
+      />
+    )
+  }
+
+  if (showTemplateCreator) {
+    return (
+      <TemplateCreator onClose={handleCloseTemplateCreator} />
     )
   }
 
@@ -63,9 +144,9 @@ export default function EmailsPage() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => {/* TODO: Show template manager */}}>
+          <Button variant="outline" onClick={() => setShowTemplateCreator(true)}>
             <File className="w-4 h-4 mr-2" />
-            Manage Templates
+            Create Template (Advanced)
           </Button>
           <Button onClick={() => setShowComposer(true)}>
             <Plus className="w-4 h-4 mr-2" />
@@ -74,7 +155,7 @@ export default function EmailsPage() {
         </div>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-6">
+      <div className="grid md:grid-cols-2 gap-6">
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -86,26 +167,47 @@ export default function EmailsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-center text-muted-foreground py-8">
-              No draft emails yet
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Send className="w-5 h-5" />
-              Sent Emails
-            </CardTitle>
-            <CardDescription>
-              Previously sent stakeholder updates
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-center text-muted-foreground py-8">
-              No sent emails yet
-            </p>
+            {drafts.length > 0 ? (
+              <div className="space-y-2">
+                {drafts.slice(0, 3).map((draft) => (
+                  <div key={draft.id} className="flex items-center justify-between p-3 border rounded hover:bg-gray-50">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium truncate">{draft.subject || 'Untitled Draft'}</div>
+                      <div className="text-sm text-muted-foreground">
+                        {draft.template?.name && `Template: ${draft.template.name} • `}
+                        {draft.emailIssues.length > 0 && `${draft.emailIssues.length} issues • `}
+                        {new Date(draft.updatedAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleEditDraft(draft.id)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleDeleteDraft(draft.id)}
+                      >
+                        Delete
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                {drafts.length > 3 && (
+                  <p className="text-sm text-muted-foreground text-center">
+                    and {drafts.length - 3} more drafts...
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-center text-muted-foreground py-8">
+                No draft emails yet
+              </p>
+            )}
           </CardContent>
         </Card>
 
@@ -169,11 +271,11 @@ export default function EmailsPage() {
             <Button 
               variant="outline" 
               size="lg" 
-              onClick={() => {/* TODO: Create template */}}
+              onClick={() => setShowTemplateCreator(true)}
               className="h-20 flex-col gap-2"
             >
               <File className="w-6 h-6" />
-              <span>Create Template</span>
+              <span>Create Template (Advanced)</span>
             </Button>
           </div>
         </CardContent>

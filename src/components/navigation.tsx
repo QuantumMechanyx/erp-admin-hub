@@ -19,6 +19,11 @@ const navigation = [
     description: "Meeting interface for discussions"
   },
   {
+    name: "Action Item Interface",
+    href: "/action-items",
+    description: "Action item management and organization"
+  },
+  {
     name: "Email Interface",
     href: "/emails",
     description: "Email drafting interface"
