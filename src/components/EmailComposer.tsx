@@ -170,6 +170,10 @@ export function EmailComposer({ onClose, draftId }: EmailComposerProps) {
     processed = processed.replace(/{{currentDate}}/g, templateData.currentDate)
     processed = processed.replace(/{{currentWeek}}/g, templateData.currentWeek)
     
+    // Replace user variables
+    const userFirstName = user?.name?.split(' ')[0] || user?.name || 'Admin'
+    processed = processed.replace(/{{userFirstName}}/g, userFirstName)
+    
     // Replace statistics
     Object.entries(templateData.stats).forEach(([key, value]) => {
       processed = processed.replace(new RegExp(`{{stats\\.${key}}}`, 'g'), value.toString())
@@ -310,15 +314,18 @@ export function EmailComposer({ onClose, draftId }: EmailComposerProps) {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="from">From</Label>
-                    <Input
-                      id="from"
-                      value={user ? `${user.name} <${user.email}>` : ""}
-                      disabled
-                      className="bg-muted"
-                    />
-                  </div>
+                  {/* From field hidden for copy/paste workflow */}
+                  {false && (
+                    <div className="space-y-2">
+                      <Label htmlFor="from">From</Label>
+                      <Input
+                        id="from"
+                        value={user ? `${user.name} <${user.email}>` : ""}
+                        disabled
+                        className="bg-muted"
+                      />
+                    </div>
+                  )}
                   
                   <div className="space-y-2">
                     <Label htmlFor="subject">Subject</Label>
@@ -340,7 +347,7 @@ export function EmailComposer({ onClose, draftId }: EmailComposerProps) {
                       className="min-h-[400px]"
                     />
                     <p className="text-xs text-muted-foreground">
-                      Use template variables like {`{{currentDate}}, {{stats.total}}, {{openIssues}}`}, etc.
+                      Use template variables like {`{{currentDate}}, {{userFirstName}}, {{stats.total}}, {{openIssues}}`}, etc.
                     </p>
                   </div>
                 </CardContent>
@@ -483,6 +490,16 @@ export function EmailComposer({ onClose, draftId }: EmailComposerProps) {
                       <span>{templateData.currentDate}</span>
                       <code>{`{{currentWeek}}`}</code>
                       <span>{templateData.currentWeek}</span>
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <h4 className="font-semibold mb-2">User Variables</h4>
+                    <div className="grid grid-cols-2 gap-2 text-sm">
+                      <code>{`{{userFirstName}}`}</code>
+                      <span>{user?.name?.split(' ')[0] || user?.name || 'Admin'}</span>
                     </div>
                   </div>
 

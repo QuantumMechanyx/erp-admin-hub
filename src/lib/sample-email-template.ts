@@ -19,16 +19,14 @@ RESOLVED ISSUES
 If you have any questions or concerns about any of these items, please don't hesitate to reach out.
 
 Best regards,
-ERP Administration Team
-
----
-This report was generated on {{currentDate}} from our ERP Admin Hub dashboard.`,
+{{userFirstName}}`,
   variables: JSON.stringify({
     currentDate: "Current date",
     currentWeek: "Week date range",
     lastWeekSummary: "Summary of all issues from last week with their current status",
     resolvedIssues: "List of issues that were resolved",
-    currentIssues: "List of current issues (both carried forward and newly discovered)"
+    currentIssues: "List of current issues (both carried forward and newly discovered)",
+    userFirstName: "First name of the logged-in user"
   }),
   isDefault: true
 }
