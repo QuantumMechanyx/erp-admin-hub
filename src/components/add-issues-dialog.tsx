@@ -107,7 +107,7 @@ export function AddIssuesDialog({
     if (state?.error) {
       console.error("AddIssuesDialog: Error detected:", state.error)
     }
-  }, [state?.success, state?.error, onClose, onSuccess, selectedIssueIds, availableIssues])
+  }, [state?.success, state?.error, onClose, onSuccess])
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
