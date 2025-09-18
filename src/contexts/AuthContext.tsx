@@ -106,20 +106,42 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
   const login = async () => {
     try {
       setIsLoading(true)
-      const response: AuthenticationResult = await instance.loginPopup({
-        scopes: ["openid", "profile", "User.Read"],
-      })
       
-      if (response.account) {
-        setUser({
-          id: response.account.homeAccountId,
-          name: response.account.name || response.account.username,
-          email: response.account.username,
-          authType: "azure",
+      // Check if we're in a popup or iframe (which would cause the popup error)
+      const isInPopup = window.self !== window.top
+      
+      if (isInPopup) {
+        // If we're in a popup, use redirect flow instead
+        await instance.loginRedirect({
+          scopes: ["openid", "profile", "User.Read"],
         })
+      } else {
+        // Use popup flow for normal windows
+        const response: AuthenticationResult = await instance.loginPopup({
+          scopes: ["openid", "profile", "User.Read"],
+        })
+        
+        if (response.account) {
+          setUser({
+            id: response.account.homeAccountId,
+            name: response.account.name || response.account.username,
+            email: response.account.username,
+            authType: "azure",
+          })
+        }
       }
     } catch (error) {
       console.error("Login failed:", error)
+      // If popup fails, fallback to redirect
+      if (error instanceof Error && error.message.includes('popup')) {
+        try {
+          await instance.loginRedirect({
+            scopes: ["openid", "profile", "User.Read"],
+          })
+        } catch (redirectError) {
+          console.error("Redirect login also failed:", redirectError)
+        }
+      }
     } finally {
       setIsLoading(false)
     }
@@ -169,7 +191,27 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
       
       // If Azure user, logout from MSAL
       if (user?.authType === "azure") {
-        await instance.logoutPopup()
+        try {
+          const isInPopup = window.self !== window.top
+          
+          if (isInPopup) {
+            // If we're in a popup, use redirect flow instead
+            await instance.logoutRedirect()
+          } else {
+            // Use popup flow for normal windows
+            await instance.logoutPopup()
+          }
+        } catch (error) {
+          console.error("MSAL logout failed:", error)
+          // Fallback to redirect if popup fails
+          try {
+            await instance.logoutRedirect()
+          } catch (redirectError) {
+            console.error("Redirect logout also failed:", redirectError)
+            // Clear local state anyway
+            setUser(null)
+          }
+        }
       }
       
       setUser(null)

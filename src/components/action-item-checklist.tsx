@@ -101,14 +101,12 @@ export function ActionItemChecklist({ issueId, actionItems: initialItems }: Acti
         throw new Error('Failed to create action item')
       }
 
-      const result = await response.json()
-      if (result.success) {
-        setActionItems(items => [result.actionItem, ...items])
-        setNewItem({ title: "", description: "", priority: 0, dueDate: undefined })
-        setIsAddingItem(false)
-      } else {
-        throw new Error(result.error || 'Failed to create action item')
-      }
+      const createdItem = await response.json()
+      
+      // API returns the action item directly on success (201 status)
+      setActionItems(items => [createdItem, ...items])
+      setNewItem({ title: "", description: "", priority: 0, dueDate: undefined })
+      setIsAddingItem(false)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create action item')
     } finally {
@@ -242,7 +240,7 @@ export function ActionItemChecklist({ issueId, actionItems: initialItems }: Acti
 
         {actionItems.length === 0 ? (
           <div className="text-center text-muted-foreground py-8">
-            No action items yet. Click "Add Item" to create your first action item.
+            No action items yet. Click &quot;Add Item&quot; to create your first action item.
           </div>
         ) : (
           <div className="space-y-3">

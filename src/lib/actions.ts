@@ -149,6 +149,25 @@ export async function updateIssue(id: string, prevState: unknown, formData: Form
   }
 }
 
+export async function archiveIssue(id: string) {
+  try {
+    await db.issue.update({
+      where: { id },
+      data: {
+        archived: true,
+        archivedAt: new Date(),
+      },
+    })
+
+    revalidatePath("/dashboard")
+    redirect("/dashboard")
+  } catch (error) {
+    return {
+      errors: { _form: ["Failed to archive issue"] },
+    }
+  }
+}
+
 export async function deleteIssue(id: string) {
   try {
     await db.issue.delete({
@@ -314,6 +333,7 @@ export async function getIssues() {
   try {
     const issues = await db.issue.findMany({
       where: {
+        archived: false,
         status: {
           in: ["OPEN", "IN_PROGRESS"]
         }
@@ -344,6 +364,7 @@ export async function getResolvedIssues() {
   try {
     const issues = await db.issue.findMany({
       where: {
+        archived: false,
         status: {
           in: ["RESOLVED", "CLOSED"]
         }

@@ -5,8 +5,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
-import { deleteIssue } from "@/lib/actions"
-import { Settings, Trash2, ExternalLink } from "lucide-react"
+import { deleteIssue, archiveIssue } from "@/lib/actions"
+import { Settings, Trash2, ExternalLink, Archive } from "lucide-react"
 import { useState } from "react"
 
 type Issue = {
@@ -25,7 +25,9 @@ interface IssueActionsProps {
 
 export function IssueActions({ issue }: IssueActionsProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
+  const [showArchiveDialog, setShowArchiveDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isArchiving, setIsArchiving] = useState(false)
 
   const handleDeleteConfirm = async () => {
     setIsDeleting(true)
@@ -36,6 +38,18 @@ export function IssueActions({ issue }: IssueActionsProps) {
       console.error("Failed to delete issue:", error)
     } finally {
       setIsDeleting(false)
+    }
+  }
+
+  const handleArchiveConfirm = async () => {
+    setIsArchiving(true)
+    try {
+      await archiveIssue(issue.id)
+      setShowArchiveDialog(false)
+    } catch (error) {
+      console.error("Failed to archive issue:", error)
+    } finally {
+      setIsArchiving(false)
     }
   }
 
@@ -87,7 +101,18 @@ export function IssueActions({ issue }: IssueActionsProps) {
           </div>
         </div>
 
-        <div className="border-t pt-4">
+        <div className="border-t pt-4 space-y-2">
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="w-full"
+            onClick={() => setShowArchiveDialog(true)}
+            disabled={isArchiving}
+          >
+            <Archive className="w-4 h-4 mr-2" />
+            Archive Issue
+          </Button>
+          
           <Button 
             variant="destructive" 
             size="sm" 
@@ -100,6 +125,17 @@ export function IssueActions({ issue }: IssueActionsProps) {
           </Button>
         </div>
       </CardContent>
+
+      <DeleteConfirmationDialog
+        isOpen={showArchiveDialog}
+        onClose={() => setShowArchiveDialog(false)}
+        onConfirm={handleArchiveConfirm}
+        title="Archive Issue"
+        description="This will archive the issue, removing it from active lists while preserving all data. Archived issues can be restored if needed."
+        confirmationText="archive"
+        itemName={issue.title}
+        isLoading={isArchiving}
+      />
 
       <DeleteConfirmationDialog
         isOpen={showDeleteDialog}
