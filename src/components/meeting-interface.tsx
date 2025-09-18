@@ -131,10 +131,6 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
       // Then perform the server action
       await removeIssueFromMeeting(meeting.id, issueId)
       console.log("handleRemoveIssue: Issue removed successfully from server")
-      
-      // Refresh to ensure server state is synced (in case of any discrepancies)
-      refreshMeeting()
-      console.log("handleRemoveIssue: refreshMeeting called")
     } catch (error) {
       console.error("Failed to remove issue:", error)
       // On error, refresh to restore correct state
@@ -212,11 +208,7 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
     }
     updateMeetingData(updatedMeeting)
     console.log("handleAddIssuesSuccess: Optimistically updated UI with", addedIssues.length, "new issues")
-    
-    // Then refresh to ensure server state is synced
-    refreshMeeting()
-    console.log("handleAddIssuesSuccess: refreshMeeting called")
-  }, [meeting, updateMeetingData, refreshMeeting])
+  }, [meeting, updateMeetingData])
 
 
   const formatText = (text: string) => {
