@@ -278,7 +278,21 @@ export default function ActionItemsPage() {
         }
       }
     }
-    
+
+    // Moving from managed to completed
+    if (source.droppableId === 'managed' && destination.droppableId === 'completed') {
+      const item = managedItems.find(item => item.id === draggableId)
+      if (item) {
+        try {
+          // Mark as completed
+          await handleUpdateItem(item.id, { completed: true })
+        } catch (error) {
+          console.error('Error marking item as completed:', error)
+          loadActionItems()
+        }
+      }
+    }
+
     // Reordering within managed (local only, no API call needed)
     if (source.droppableId === 'managed' && destination.droppableId === 'managed') {
       const newItems = Array.from(managedItems)
@@ -609,17 +623,20 @@ export default function ActionItemsPage() {
             </CardHeader>
             <CardContent>
               <Droppable droppableId="completed">
-                {(provided) => (
+                {(provided, snapshot) => (
                   <div
                     ref={provided.innerRef}
                     {...provided.droppableProps}
-                    className="space-y-2 max-h-64 overflow-y-auto"
+                    className={`
+                      space-y-2 max-h-64 overflow-y-auto transition-colors
+                      ${snapshot.isDraggingOver ? 'bg-green-50 border-2 border-green-200 border-dashed rounded-lg p-2' : ''}
+                    `}
                   >
                     {completedItems.length === 0 ? (
                       <div className="text-center py-8 text-gray-500">
                         <CheckCircle2 className="w-8 h-8 mx-auto mb-2 opacity-50" />
                         <p>No recently completed items</p>
-                        <p className="text-xs mt-1">Items can be dragged back to active</p>
+                        <p className="text-xs mt-1">Drag items here to mark as complete, or drag completed items back to active</p>
                       </div>
                     ) : (
                       completedItems.map((item, index) => (

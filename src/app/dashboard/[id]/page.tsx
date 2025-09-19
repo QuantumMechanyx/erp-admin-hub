@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { getIssue } from "@/lib/actions"
 import { IssueNotes } from "@/components/issue-notes"
 import { IssueActions } from "@/components/issue-actions"
-import { CmicTicketManager } from "@/components/cmic-ticket-manager"
+import { SupportTicketManager } from "@/components/support-ticket-manager"
 import { AdditionalHelpNotes } from "@/components/additional-help-notes-simple"
 import { RelatedZendeskTickets } from "@/components/related-zendesk-tickets"
 import { ActionItemChecklist } from "@/components/action-item-checklist"
@@ -201,7 +201,7 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
         <div className="space-y-6">
           <IssueActions issue={issue} />
           <RelatedZendeskTickets issueId={issue.id} />
-          <CmicTicketManager issue={issue} cmicNotes={issue.cmicNotes} />
+          <SupportTicketManager issue={issue} cmicNotes={issue.cmicNotes} />
           <AdditionalHelpNotes issueId={issue.id} notes={issue.additionalHelpNotes} />
         </div>
       </div>

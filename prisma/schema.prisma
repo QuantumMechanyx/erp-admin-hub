@@ -29,6 +29,9 @@ model Issue {
   cmicTicketClosed    Boolean              @default(false)
   cmicTicketNumber    String?
   cmicTicketOpened    DateTime?
+  procoreTicketNumber String?
+  procoreTicketOpened DateTime?
+  procoreTicketClosed Boolean              @default(false)
   additionalHelp      String?
   additionalHelpNotes AdditionalHelpNote[]
   cmicNotes           CmicNote[]

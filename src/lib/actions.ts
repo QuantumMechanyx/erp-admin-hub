@@ -20,6 +20,9 @@ const CreateIssueSchema = z.object({
   cmicTicketNumber: z.string().nullable().transform(val => val || undefined),
   cmicTicketOpened: z.string().nullable().transform((val) => val ? new Date(val) : undefined),
   cmicTicketClosed: z.boolean().optional().default(false),
+  procoreTicketNumber: z.string().nullable().transform(val => val || undefined),
+  procoreTicketOpened: z.string().nullable().transform((val) => val ? new Date(val) : undefined),
+  procoreTicketClosed: z.boolean().optional().default(false),
 })
 
 const CreateCategorySchema = z.object({
