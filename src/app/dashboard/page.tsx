@@ -6,7 +6,6 @@ import { Plus, ChevronDown } from "lucide-react"
 import Link from "next/link"
 import { getIssues, getResolvedIssues, getCategories } from "@/lib/actions"
 import { IssuesList } from "@/components/issues-list"
-import { DashboardStats } from "@/components/dashboard-stats"
 import { ZendeskTicketsDrawer } from "@/components/zendesk-tickets-drawer"
 
 export const revalidate = 0
@@ -42,10 +41,6 @@ export default async function Dashboard() {
           </Button>
         </div>
       </div>
-
-      <Suspense fallback={<div>Loading stats...</div>}>
-        <DashboardStats issues={issues} categories={categories} />
-      </Suspense>
 
       <Card>
         <CardHeader>
