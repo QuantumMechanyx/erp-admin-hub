@@ -6,8 +6,29 @@ export async function GET() {
     const actionItems = await db.actionItem.findMany({
       include: {
         issue: {
-          include: {
-            category: true
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            category: {
+              select: {
+                name: true,
+                color: true
+              }
+            }
+          }
+        },
+        originalIssue: {
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            category: {
+              select: {
+                name: true,
+                color: true
+              }
+            }
           }
         }
       },
@@ -54,6 +75,7 @@ export async function POST(request: NextRequest) {
 
     const createData = {
       issueId: issueId || null,
+      originalIssueId: issueId || null,
       title,
       description,
       priority: priority || 0,
@@ -66,8 +88,16 @@ export async function POST(request: NextRequest) {
       data: createData,
       include: {
         issue: {
-          include: {
-            category: true
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            category: {
+              select: {
+                name: true,
+                color: true
+              }
+            }
           }
         }
       }

@@ -14,14 +14,14 @@ const navigation = [
     description: "Working interface for issue management"
   },
   {
-    name: "Meeting Interface",
-    href: "/meetings",
-    description: "Meeting interface for discussions"
-  },
-  {
     name: "Action Item Interface",
     href: "/action-items",
     description: "Action item management and organization"
+  },
+  {
+    name: "Meeting Interface",
+    href: "/meetings",
+    description: "Meeting interface for discussions"
   },
   {
     name: "Email Interface",

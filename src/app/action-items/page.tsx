@@ -20,9 +20,20 @@ interface ActionItem {
   createdAt: string
   updatedAt: string
   issueId?: string
+  originalIssueId?: string
   issue?: {
     id: string
     title: string
+    description?: string
+    category?: {
+      name: string
+      color?: string
+    }
+  }
+  originalIssue?: {
+    id: string
+    title: string
+    description?: string
     category?: {
       name: string
       color?: string
@@ -105,8 +116,8 @@ export default function ActionItemsPage() {
         const today = new Date()
         const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
         
-        // Separate managed items (standalone) from available items (linked to issues)
-        const allManaged = items.filter((item: ActionItem) => !item.issueId)
+        // Separate managed items (moved from issues or created standalone) from available items (still linked to issues)
+        const allManaged = items.filter((item: ActionItem) => !item.issueId && (item.originalIssueId || !item.originalIssueId))
         const available = items.filter((item: ActionItem) => item.issueId)
         
         // Further separate managed items by completion status and date
@@ -185,8 +196,8 @@ export default function ActionItemsPage() {
 
   const handleDeleteItem = async (id: string, item?: ActionItem) => {
     try {
-      // If item has an issueId, restore it to available instead of deleting
-      if (item?.issue?.id) {
+      // If item has an issueId or originalIssueId, restore it to available instead of deleting
+      if (item?.originalIssueId) {
         await handleRestoreToAvailable(item)
         return
       }
@@ -206,11 +217,15 @@ export default function ActionItemsPage() {
   }
 
   const handleRestoreToAvailable = async (item: ActionItem) => {
-    if (!item.issue?.id) return
-    
+    const restoreId = item.originalIssueId || item.issue?.id;
+    if (!restoreId) return
+
     try {
       // Restore the original issueId to move it back to available items
-      await handleUpdateItem(item.id, { issueId: item.issue.id })
+      await handleUpdateItem(item.id, {
+        issueId: restoreId,
+        originalIssueId: null
+      })
     } catch (error) {
       console.error('Error restoring item to available:', error)
     }
@@ -233,9 +248,12 @@ export default function ActionItemsPage() {
       console.log('Found item:', item)
       if (item) {
         try {
-          console.log('Attempting to update item with issueId: null')
-          // Remove issueId to make it a managed item
-          await handleUpdateItem(item.id, { issueId: null })
+          console.log('Moving item to managed, preserving original issue link')
+          // Set originalIssueId to preserve the link, then remove issueId to make it managed
+          await handleUpdateItem(item.id, {
+            issueId: null,
+            originalIssueId: item.issueId || item.originalIssueId
+          })
           console.log('Update successful')
         } catch (error) {
           console.error('Error moving item to managed:', error)
@@ -316,25 +334,49 @@ export default function ActionItemsPage() {
                       autoFocus
                     />
                   ) : (
-                    <h4 className={`font-medium text-sm ${item.completed ? 'line-through' : ''}`}>
-                      {item.title}
-                    </h4>
+                    <div className="flex items-center gap-1">
+                      <h4
+                        className={`font-medium text-sm ${item.completed ? 'line-through' : ''} ${
+                          (item.issueId || item.originalIssueId) ? 'cursor-pointer text-blue-700 hover:text-blue-900 hover:underline transition-colors' : ''
+                        }`}
+                        onClick={(e) => {
+                          const linkedIssueId = item.issueId || item.originalIssueId;
+                          if (linkedIssueId) {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            window.open(`/dashboard/${linkedIssueId}`, '_blank');
+                          }
+                        }}
+                        title={
+                          (item.issueId || item.originalIssueId) ?
+                          `Click to open issue in new tab: ${item.issue?.title || item.originalIssue?.title || 'Related Issue'}` :
+                          (item.description || undefined)
+                        }
+                      >
+                        {item.title}
+                      </h4>
+                      {(item.issueId || item.originalIssueId) && (
+                        <span className="text-blue-500 text-xs" title="Linked to an issue">🔗</span>
+                      )}
+                    </div>
                   )}
                   
                   {item.description && (
                     <p className="text-xs text-gray-600 mt-1">{item.description}</p>
                   )}
                   
-                  {item.issue && (
+                  {(item.issue || item.originalIssue) && (
                     <div className="flex items-center gap-1 mt-1">
                       <span className="text-xs text-gray-500">From:</span>
-                      <span className="text-xs font-medium">{item.issue.title}</span>
-                      {item.issue.category && (
-                        <span 
+                      <span className="text-xs font-medium text-blue-600 cursor-pointer hover:underline"
+                        onClick={() => window.open(`/dashboard/${item.issueId || item.originalIssueId}`, '_blank')}
+                        title="Click to open issue">{item.issue?.title || item.originalIssue?.title}</span>
+                      {(item.issue?.category || item.originalIssue?.category) && (
+                        <span
                           className="text-xs px-1 py-0.5 rounded"
-                          style={{ backgroundColor: item.issue.category.color + '20' }}
+                          style={{ backgroundColor: (item.issue?.category?.color || item.originalIssue?.category?.color) + '20' }}
                         >
-                          {item.issue.category.name}
+                          {item.issue?.category?.name || item.originalIssue?.category?.name}
                         </span>
                       )}
                     </div>
@@ -594,7 +636,31 @@ export default function ActionItemsPage() {
                             >
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1">
-                                  <h4 className="font-medium text-sm line-through text-green-800">{item.title}</h4>
+                                  <div className="flex items-center gap-1">
+                                    <h4
+                                      className={`font-medium text-sm line-through text-green-800 ${
+                                        (item.issueId || item.originalIssueId) ? 'cursor-pointer hover:text-blue-600 hover:underline transition-colors' : ''
+                                      }`}
+                                      onClick={(e) => {
+                                        const linkedIssueId = item.issueId || item.originalIssueId;
+                                        if (linkedIssueId) {
+                                          e.preventDefault();
+                                          e.stopPropagation();
+                                          window.open(`/dashboard/${linkedIssueId}`, '_blank');
+                                        }
+                                      }}
+                                      title={
+                                        (item.issueId || item.originalIssueId) ?
+                                        `Click to open issue in new tab: ${item.issue?.title || item.originalIssue?.title || 'Related Issue'}` :
+                                        (item.description || undefined)
+                                      }
+                                    >
+                                      {item.title}
+                                    </h4>
+                                    {(item.issueId || item.originalIssueId) && (
+                                      <span className="text-blue-500 text-xs" title="Linked to an issue">🔗</span>
+                                    )}
+                                  </div>
                                   {item.description && (
                                     <p className="text-xs text-green-600 mt-1">{item.description}</p>
                                   )}
@@ -667,7 +733,31 @@ export default function ActionItemsPage() {
                     <div key={item.id} className="p-3 border rounded-lg bg-gray-50 border-gray-200 opacity-75">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1">
-                          <h4 className="font-medium text-sm line-through text-gray-700">{item.title}</h4>
+                          <div className="flex items-center gap-1">
+                            <h4
+                              className={`font-medium text-sm line-through text-gray-700 ${
+                                (item.issueId || item.originalIssueId) ? 'cursor-pointer hover:text-blue-600 hover:underline transition-colors' : ''
+                              }`}
+                              onClick={(e) => {
+                                const linkedIssueId = item.issueId || item.originalIssueId;
+                                if (linkedIssueId) {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  window.open(`/dashboard/${linkedIssueId}`, '_blank');
+                                }
+                              }}
+                              title={
+                                (item.issueId || item.originalIssueId) ?
+                                `Click to open issue in new tab: ${item.issue?.title || item.originalIssue?.title || 'Related Issue'}` :
+                                (item.description || undefined)
+                              }
+                            >
+                              {item.title}
+                            </h4>
+                            {(item.issueId || item.originalIssueId) && (
+                              <span className="text-blue-500 text-xs" title="Linked to an issue">🔗</span>
+                            )}
+                          </div>
                           {item.description && (
                             <p className="text-xs text-gray-500 mt-1">{item.description}</p>
                           )}

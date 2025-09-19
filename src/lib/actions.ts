@@ -406,6 +406,12 @@ export async function getIssue(id: string) {
           orderBy: { createdAt: "desc" },
         },
         actionItems: {
+          where: {
+            OR: [
+              { issueId: id },
+              { originalIssueId: id }
+            ]
+          },
           orderBy: [
             { completed: "asc" },
             { priority: "desc" },

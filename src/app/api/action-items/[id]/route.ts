@@ -42,22 +42,23 @@ export async function PATCH(
   try {
     const { id } = await params
     const requestBody = await request.json()
-    const { completed, title, description, priority, dueDate, issueId } = requestBody
+    const { completed, title, description, priority, dueDate, issueId, originalIssueId } = requestBody
 
     console.log('🔧 PATCH action item request:', {
       id,
       requestBody,
-      updateFields: { completed, title, description, priority, dueDate, issueId }
+      updateFields: { completed, title, description, priority, dueDate, issueId, originalIssueId }
     })
 
     const updateData: Record<string, unknown> = {}
-    
+
     if (completed !== undefined) updateData.completed = completed
     if (title !== undefined) updateData.title = title
     if (description !== undefined) updateData.description = description
     if (priority !== undefined) updateData.priority = priority
     if (dueDate !== undefined) updateData.dueDate = dueDate ? new Date(dueDate) : null
     if (issueId !== undefined) updateData.issueId = issueId
+    if (originalIssueId !== undefined) updateData.originalIssueId = originalIssueId
 
     console.log('📝 Update data prepared:', updateData)
 
