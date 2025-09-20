@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Calendar, Clock, Flag, Plus, X, Edit3, Trash2, AlertTriangle, CheckCircle2, Archive, Undo2 } from "lucide-react"
+import { Calendar, Clock, Flag, Plus, Edit3, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react"
 import { format, parseISO, differenceInDays } from "date-fns"
 
 interface ActionItem {
@@ -85,10 +85,7 @@ function getDueDateStatus(dueDate?: string) {
 }
 
 export default function ActionItemsPage() {
-  const [managedItems, setManagedItems] = useState<ActionItem[]>([])
-  const [availableItems, setAvailableItems] = useState<ActionItem[]>([])
-  const [completedItems, setCompletedItems] = useState<ActionItem[]>([])
-  const [archivedItems, setArchivedItems] = useState<ActionItem[]>([])
+  const [allItems, setAllItems] = useState<ActionItem[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [newItem, setNewItem] = useState<NewActionItem>({
     title: "",
@@ -110,33 +107,28 @@ export default function ActionItemsPage() {
       if (response.ok) {
         const items = await response.json()
         console.log('All loaded items:', items)
-        console.log('Items with issueId:', items.filter((item: ActionItem) => item.issueId))
-        console.log('Items without issueId:', items.filter((item: ActionItem) => !item.issueId))
-        
-        const today = new Date()
-        const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000)
-        
-        // Separate managed items (moved from issues or created standalone) from available items (still linked to issues)
-        const allManaged = items.filter((item: ActionItem) => !item.issueId && (item.originalIssueId || !item.originalIssueId))
-        const available = items.filter((item: ActionItem) => item.issueId)
-        
-        // Further separate managed items by completion status and date
-        const activeManaged = allManaged.filter((item: ActionItem) => !item.completed)
-        const completedManaged = allManaged.filter((item: ActionItem) => {
+
+        // Filter out completed items older than 7 days and delete them
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+        const itemsToDelete = items.filter((item: ActionItem) => {
           if (!item.completed) return false
           const updatedDate = parseISO(item.updatedAt)
-          return updatedDate >= thirtyDaysAgo
+          return updatedDate < sevenDaysAgo
         })
-        const archivedManaged = allManaged.filter((item: ActionItem) => {
-          if (!item.completed) return false
+
+        // Delete old completed items
+        for (const item of itemsToDelete) {
+          await fetch(`/api/action-items/${item.id}`, { method: 'DELETE' })
+        }
+
+        // Filter to keep only non-deleted items
+        const activeItems = items.filter((item: ActionItem) => {
+          if (!item.completed) return true
           const updatedDate = parseISO(item.updatedAt)
-          return updatedDate < thirtyDaysAgo
+          return updatedDate >= sevenDaysAgo
         })
-        
-        setManagedItems(activeManaged)
-        setAvailableItems(available)
-        setCompletedItems(completedManaged)
-        setArchivedItems(archivedManaged)
+
+        setAllItems(activeItems)
       }
     } catch (error) {
       console.error('Error loading action items:', error)
@@ -156,10 +148,9 @@ export default function ActionItemsPage() {
       })
       
       if (response.ok) {
-        const createdItem = await response.json()
-        setManagedItems([...managedItems, createdItem])
         setNewItem({ title: "", description: "", priority: 0, dueDate: "" })
         setShowNewItemForm(false)
+        loadActionItems() // Reload to get updated list
       }
     } catch (error) {
       console.error('Error creating action item:', error)
@@ -181,7 +172,6 @@ export default function ActionItemsPage() {
         console.log('Response OK, reloading items')
         const result = await response.json()
         console.log('Updated item result:', result)
-        // Reload all items to properly categorize them
         loadActionItems()
         setEditingItem(null)
         setEditingNote(prev => ({ ...prev, [id]: "" }))
@@ -208,7 +198,6 @@ export default function ActionItemsPage() {
       })
       
       if (response.ok) {
-        // Reload all items to update all categories
         loadActionItems()
       }
     } catch (error) {
@@ -216,89 +205,17 @@ export default function ActionItemsPage() {
     }
   }
 
-  const handleRestoreToAvailable = async (item: ActionItem) => {
-    const restoreId = item.originalIssueId || item.issue?.id;
-    if (!restoreId) return
-
-    try {
-      // Restore the original issueId to move it back to available items
-      await handleUpdateItem(item.id, {
-        issueId: restoreId,
-        originalIssueId: null
-      })
-    } catch (error) {
-      console.error('Error restoring item to available:', error)
-    }
-  }
-
   const handleDragEnd = async (result: any) => {
     const { destination, source, draggableId } = result
-    
-    console.log('Drag end:', { destination, source, draggableId })
-    
-    if (!destination) {
-      console.log('No destination, cancelling drag')
-      return
-    }
-    
-    // Moving from available to managed
-    if (source.droppableId === 'available' && destination.droppableId === 'managed') {
-      console.log('Moving from available to managed')
-      const item = availableItems.find(item => item.id === draggableId)
-      console.log('Found item:', item)
-      if (item) {
-        try {
-          console.log('Moving item to managed, preserving original issue link')
-          // Set originalIssueId to preserve the link, then remove issueId to make it managed
-          await handleUpdateItem(item.id, {
-            issueId: null,
-            originalIssueId: item.issueId || item.originalIssueId
-          })
-          console.log('Update successful')
-        } catch (error) {
-          console.error('Error moving item to managed:', error)
-          // Reload items to ensure consistency
-          loadActionItems()
-        }
-      } else {
-        console.error('Item not found in availableItems')
-      }
-    }
-    
-    // Moving from completed back to managed
-    if (source.droppableId === 'completed' && destination.droppableId === 'managed') {
-      const item = completedItems.find(item => item.id === draggableId)
-      if (item) {
-        try {
-          // Mark as incomplete and remove issueId to make it a managed item
-          await handleUpdateItem(item.id, { completed: false, issueId: null })
-        } catch (error) {
-          console.error('Error restoring item to managed:', error)
-          loadActionItems()
-        }
-      }
-    }
 
-    // Moving from managed to completed
-    if (source.droppableId === 'managed' && destination.droppableId === 'completed') {
-      const item = managedItems.find(item => item.id === draggableId)
-      if (item) {
-        try {
-          // Mark as completed
-          await handleUpdateItem(item.id, { completed: true })
-        } catch (error) {
-          console.error('Error marking item as completed:', error)
-          loadActionItems()
-        }
-      }
-    }
+    if (!destination) return
 
-    // Reordering within managed (local only, no API call needed)
-    if (source.droppableId === 'managed' && destination.droppableId === 'managed') {
-      const newItems = Array.from(managedItems)
+    // Reordering within the same list (local only)
+    if (source.droppableId === destination.droppableId && source.droppableId === 'action-items') {
+      const newItems = Array.from(allItems)
       const [reorderedItem] = newItems.splice(source.index, 1)
       newItems.splice(destination.index, 0, reorderedItem)
-      setManagedItems(newItems)
+      setAllItems(newItems)
     }
   }
 
@@ -472,343 +389,194 @@ export default function ActionItemsPage() {
     )
   }
 
+  // Separate active and completed items for display
+  const activeItems = allItems.filter(item => !item.completed)
+  const completedItems = allItems.filter(item => item.completed)
+
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Action Items Manager</h1>
           <p className="text-muted-foreground">
-            Organize and track action items with visual due date warnings
+            Organize and track all your action items in one place. Completed items older than 7 days are automatically removed.
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-5 gap-6">
-          {/* Action Items Manager */}
-          <Card className="h-fit lg:col-span-3">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>My Action Items</span>
-                <Button
-                  size="sm"
-                  onClick={() => setShowNewItemForm(true)}
-                  className="h-8"
-                >
-                  <Plus className="w-4 h-4 mr-1" />
-                  Add Item
-                </Button>
-              </CardTitle>
-              <CardDescription>
-                Your organized action items with drag-and-drop management
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {showNewItemForm && (
-                <div className="mb-4 p-3 border rounded-lg bg-gray-50">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>My Action Items</span>
+              <Button
+                size="sm"
+                onClick={() => setShowNewItemForm(true)}
+                className="h-8"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Add Item
+              </Button>
+            </CardTitle>
+            <CardDescription>
+              All your action items including those from issues. Mark as completed by checking the box.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {showNewItemForm && (
+              <div className="mb-4 p-3 border rounded-lg bg-gray-50">
+                <Input
+                  placeholder="Action item title..."
+                  value={newItem.title}
+                  onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
+                  className="mb-2"
+                />
+                <Textarea
+                  placeholder="Description (optional)"
+                  value={newItem.description}
+                  onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
+                  className="mb-2 h-20"
+                />
+                <div className="flex gap-2 mb-2">
+                  <select
+                    value={newItem.priority}
+                    onChange={(e) => setNewItem({ ...newItem, priority: parseInt(e.target.value) })}
+                    className="px-2 py-1 border rounded text-sm"
+                  >
+                    <option value={0}>No Priority</option>
+                    <option value={1}>Low Priority</option>
+                    <option value={2}>Medium Priority</option>
+                    <option value={3}>High Priority</option>
+                  </select>
                   <Input
-                    placeholder="Action item title..."
-                    value={newItem.title}
-                    onChange={(e) => setNewItem({ ...newItem, title: e.target.value })}
-                    className="mb-2"
+                    type="date"
+                    value={newItem.dueDate}
+                    onChange={(e) => setNewItem({ ...newItem, dueDate: e.target.value })}
+                    className="text-sm"
                   />
-                  <Textarea
-                    placeholder="Description (optional)"
-                    value={newItem.description}
-                    onChange={(e) => setNewItem({ ...newItem, description: e.target.value })}
-                    className="mb-2 h-20"
-                  />
-                  <div className="flex gap-2 mb-2">
-                    <select
-                      value={newItem.priority}
-                      onChange={(e) => setNewItem({ ...newItem, priority: parseInt(e.target.value) })}
-                      className="px-2 py-1 border rounded text-sm"
-                    >
-                      <option value={0}>No Priority</option>
-                      <option value={1}>Low Priority</option>
-                      <option value={2}>Medium Priority</option>
-                      <option value={3}>High Priority</option>
-                    </select>
-                    <Input
-                      type="date"
-                      value={newItem.dueDate}
-                      onChange={(e) => setNewItem({ ...newItem, dueDate: e.target.value })}
-                      className="text-sm"
-                    />
-                  </div>
-                  <div className="flex gap-2">
-                    <Button size="sm" onClick={handleCreateItem}>
-                      Add Item
-                    </Button>
-                    <Button size="sm" variant="outline" onClick={() => setShowNewItemForm(false)}>
-                      Cancel
-                    </Button>
-                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button size="sm" onClick={handleCreateItem}>
+                    Add Item
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setShowNewItemForm(false)}>
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Active Items */}
+            <div className="space-y-3">
+              {activeItems.length > 0 && (
+                <div>
+                  <h4 className="font-medium text-sm text-gray-700 mb-2">Active Items ({activeItems.length})</h4>
+                  <Droppable droppableId="action-items">
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.droppableProps}
+                        className={`
+                          min-h-16 space-y-2 p-2 rounded-lg transition-colors
+                          ${snapshot.isDraggingOver ? 'bg-blue-50 border-2 border-blue-200 border-dashed' : ''}
+                        `}
+                      >
+                        {activeItems.map((item, index) => (
+                          <ActionItemCard key={item.id} item={item} index={index} isManaged={true} />
+                        ))}
+                        {provided.placeholder}
+                      </div>
+                    )}
+                  </Droppable>
                 </div>
               )}
-              
-              <Droppable droppableId="managed">
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className={`
-                      min-h-32 space-y-2 p-2 rounded-lg transition-colors
-                      ${snapshot.isDraggingOver ? 'bg-blue-50 border-2 border-blue-200 border-dashed' : ''}
-                    `}
-                  >
-                    {managedItems.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">
-                        <Plus className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                        <p>No managed items yet</p>
-                        <p className="text-sm">Add new items or drag from available items</p>
-                      </div>
-                    ) : (
-                      managedItems.map((item, index) => (
-                        <ActionItemCard key={item.id} item={item} index={index} isManaged={true} />
-                      ))
-                    )}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </CardContent>
-          </Card>
 
-          {/* Available Items */}
-          <Card className="h-fit lg:col-span-2">
-            <CardHeader>
-              <CardTitle>Available from Issues</CardTitle>
-              <CardDescription>
-                Action items from other parts of the app - drag to organize
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Droppable droppableId="available">
-                {(provided) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className="min-h-32 space-y-2"
-                  >
-                    {availableItems.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">
-                        <Clock className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                        <p>No available items</p>
-                        <p className="text-sm">Action items from issues will appear here</p>
-                      </div>
-                    ) : (
-                      availableItems.map((item, index) => (
-                        <ActionItemCard key={item.id} item={item} index={index} isManaged={false} />
-                      ))
-                    )}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </CardContent>
-          </Card>
-        </div>
+              {/* Completed Items */}
+              {completedItems.length > 0 && (
+                <div>
+                  <h4 className="font-medium text-sm text-gray-700 mb-2 flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-green-600" />
+                    Recently Completed ({completedItems.length})
+                    <span className="text-xs text-gray-500 font-normal">- Auto-deleted after 7 days</span>
+                  </h4>
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {completedItems.map((item) => (
+                      <div key={item.id} className="p-3 border rounded-lg bg-green-50 border-green-200">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-start gap-2 flex-1">
+                            <Checkbox
+                              checked={true}
+                              onCheckedChange={() => handleUpdateItem(item.id, { completed: false })}
+                              className="mt-1"
+                            />
+                            <div className="flex-1">
+                              <div className="flex items-center gap-1">
+                                <h4
+                                  className={`font-medium text-sm line-through text-green-800 ${
+                                    (item.issueId || item.originalIssueId) ? 'cursor-pointer hover:text-blue-600 hover:underline transition-colors' : ''
+                                  }`}
+                                  onClick={(e) => {
+                                    const linkedIssueId = item.issueId || item.originalIssueId;
+                                    if (linkedIssueId) {
+                                      e.preventDefault();
+                                      e.stopPropagation();
+                                      window.open(`/dashboard/${linkedIssueId}`, '_blank');
+                                    }
+                                  }}
+                                  title={
+                                    (item.issueId || item.originalIssueId) ?
+                                    `Click to open issue in new tab: ${item.issue?.title || item.originalIssue?.title || 'Related Issue'}` :
+                                    (item.description || undefined)
+                                  }
+                                >
+                                  {item.title}
+                                </h4>
+                                {(item.issueId || item.originalIssueId) && (
+                                  <span className="text-blue-500 text-xs" title="Linked to an issue">🔗</span>
+                                )}
+                              </div>
+                              {item.description && (
+                                <p className="text-xs text-green-600 mt-1">{item.description}</p>
+                              )}
 
-        {/* Completed and Archived Items - Bottom Row */}
-        <div className="grid lg:grid-cols-5 gap-6 mt-6">
-          {/* Recently Completed Items */}
-          <Card className="h-fit lg:col-span-3">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <CheckCircle2 className="w-5 h-5 text-green-600" />
-                Recently Completed
-              </CardTitle>
-              <CardDescription>
-                Completed action items from the last 30 days ({completedItems.length})
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Droppable droppableId="completed">
-                {(provided, snapshot) => (
-                  <div
-                    ref={provided.innerRef}
-                    {...provided.droppableProps}
-                    className={`
-                      space-y-2 max-h-64 overflow-y-auto transition-colors
-                      ${snapshot.isDraggingOver ? 'bg-green-50 border-2 border-green-200 border-dashed rounded-lg p-2' : ''}
-                    `}
-                  >
-                    {completedItems.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">
-                        <CheckCircle2 className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                        <p>No recently completed items</p>
-                        <p className="text-xs mt-1">Drag items here to mark as complete, or drag completed items back to active</p>
-                      </div>
-                    ) : (
-                      completedItems.map((item, index) => (
-                        <Draggable key={item.id} draggableId={item.id} index={index}>
-                          {(provided, snapshot) => (
-                            <div
-                              ref={provided.innerRef}
-                              {...provided.draggableProps}
-                              {...provided.dragHandleProps}
-                              className={`
-                                p-3 border rounded-lg bg-green-50 border-green-200 transition-all
-                                ${snapshot.isDragging ? 'shadow-lg rotate-1' : ''}
-                              `}
-                            >
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-1">
-                                    <h4
-                                      className={`font-medium text-sm line-through text-green-800 ${
-                                        (item.issueId || item.originalIssueId) ? 'cursor-pointer hover:text-blue-600 hover:underline transition-colors' : ''
-                                      }`}
-                                      onClick={(e) => {
-                                        const linkedIssueId = item.issueId || item.originalIssueId;
-                                        if (linkedIssueId) {
-                                          e.preventDefault();
-                                          e.stopPropagation();
-                                          window.open(`/dashboard/${linkedIssueId}`, '_blank');
-                                        }
-                                      }}
-                                      title={
-                                        (item.issueId || item.originalIssueId) ?
-                                        `Click to open issue in new tab: ${item.issue?.title || item.originalIssue?.title || 'Related Issue'}` :
-                                        (item.description || undefined)
-                                      }
-                                    >
-                                      {item.title}
-                                    </h4>
-                                    {(item.issueId || item.originalIssueId) && (
-                                      <span className="text-blue-500 text-xs" title="Linked to an issue">🔗</span>
-                                    )}
-                                  </div>
-                                  {item.description && (
-                                    <p className="text-xs text-green-600 mt-1">{item.description}</p>
-                                  )}
-                                  
-                                  <div className="flex items-center gap-3 mt-2">
-                                    <div className={`text-xs px-2 py-1 rounded border ${getPriorityColor(item.priority)}`}>
-                                      <Flag className="w-3 h-3 inline mr-1" />
-                                      {getPriorityLabel(item.priority)}
-                                    </div>
-                                    
-                                    <div className="text-xs text-green-600 flex items-center gap-1">
-                                      <CheckCircle2 className="w-3 h-3" />
-                                      Completed {format(parseISO(item.updatedAt), 'MMM d')}
-                                    </div>
-                                  </div>
+                              <div className="flex items-center gap-3 mt-2">
+                                <div className={`text-xs px-2 py-1 rounded border ${getPriorityColor(item.priority)}`}>
+                                  <Flag className="w-3 h-3 inline mr-1" />
+                                  {getPriorityLabel(item.priority)}
                                 </div>
-                                
-                                <div className="flex gap-1">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleUpdateItem(item.id, { completed: false })}
-                                    className="h-6 w-6 p-0 text-green-600 hover:text-green-800"
-                                    title="Mark as incomplete"
-                                  >
-                                    <X className="w-3 h-3" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleDeleteItem(item.id, item)}
-                                    className="h-6 w-6 p-0 text-red-600 hover:text-red-800"
-                                  >
-                                    <Trash2 className="w-3 h-3" />
-                                  </Button>
+
+                                <div className="text-xs text-green-600 flex items-center gap-1">
+                                  <CheckCircle2 className="w-3 h-3" />
+                                  Completed {format(parseISO(item.updatedAt), 'MMM d')}
                                 </div>
                               </div>
                             </div>
-                          )}
-                        </Draggable>
-                      ))
-                    )}
-                    {provided.placeholder}
-                  </div>
-                )}
-              </Droppable>
-            </CardContent>
-          </Card>
+                          </div>
 
-          {/* Archived Items */}
-          <Card className="h-fit lg:col-span-2">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Archive className="w-5 h-5 text-gray-600" />
-                Archived Items
-              </CardTitle>
-              <CardDescription>
-                Items completed more than 30 days ago ({archivedItems.length})
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {archivedItems.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    <Archive className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                    <p>No archived items</p>
-                  </div>
-                ) : (
-                  archivedItems.map((item) => (
-                    <div key={item.id} className="p-3 border rounded-lg bg-gray-50 border-gray-200 opacity-75">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-1">
-                            <h4
-                              className={`font-medium text-sm line-through text-gray-700 ${
-                                (item.issueId || item.originalIssueId) ? 'cursor-pointer hover:text-blue-600 hover:underline transition-colors' : ''
-                              }`}
-                              onClick={(e) => {
-                                const linkedIssueId = item.issueId || item.originalIssueId;
-                                if (linkedIssueId) {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  window.open(`/dashboard/${linkedIssueId}`, '_blank');
-                                }
-                              }}
-                              title={
-                                (item.issueId || item.originalIssueId) ?
-                                `Click to open issue in new tab: ${item.issue?.title || item.originalIssue?.title || 'Related Issue'}` :
-                                (item.description || undefined)
-                              }
-                            >
-                              {item.title}
-                            </h4>
-                            {(item.issueId || item.originalIssueId) && (
-                              <span className="text-blue-500 text-xs" title="Linked to an issue">🔗</span>
-                            )}
-                          </div>
-                          {item.description && (
-                            <p className="text-xs text-gray-500 mt-1">{item.description}</p>
-                          )}
-                          
-                          <div className="flex items-center gap-3 mt-2">
-                            <div className="text-xs px-2 py-1 rounded bg-gray-200 text-gray-600">
-                              <Archive className="w-3 h-3 inline mr-1" />
-                              Archived
-                            </div>
-                            
-                            <div className="text-xs text-gray-500 flex items-center gap-1">
-                              <Clock className="w-3 h-3" />
-                              {format(parseISO(item.updatedAt), 'MMM d, yyyy')}
-                            </div>
-                          </div>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteItem(item.id, item)}
+                            className="h-6 w-6 p-0 text-red-600 hover:text-red-800"
+                            title="Delete item"
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </Button>
                         </div>
-                        
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDeleteItem(item.id, item)}
-                          className="h-6 w-6 p-0 text-red-600 hover:text-red-800"
-                          title="Delete permanently"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
                       </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {allItems.length === 0 && (
+                <div className="text-center py-8 text-gray-500">
+                  <Plus className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p>No action items yet</p>
+                  <p className="text-sm">Add new items or create them from issues in the Working Interface</p>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
     </DragDropContext>
   )

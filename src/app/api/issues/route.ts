@@ -2,6 +2,50 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { revalidatePath } from 'next/cache'
 
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const status = searchParams.get('status')
+
+    const whereClause: any = {
+      archived: false
+    }
+
+    if (status === 'resolved') {
+      whereClause.status = {
+        in: ['RESOLVED', 'CLOSED']
+      }
+    } else {
+      whereClause.status = {
+        in: ['OPEN', 'IN_PROGRESS']
+      }
+    }
+
+    const issues = await db.issue.findMany({
+      where: whereClause,
+      include: {
+        category: true,
+        notes: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
+        _count: {
+          select: { notes: true },
+        },
+      },
+      orderBy: [
+        { priority: 'desc' },
+        { updatedAt: 'desc' },
+      ],
+    })
+
+    return NextResponse.json(issues)
+  } catch (error) {
+    console.error('Error fetching issues:', error)
+    return NextResponse.json({ error: 'Failed to fetch issues' }, { status: 500 })
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const data = await request.json()

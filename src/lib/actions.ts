@@ -178,7 +178,7 @@ export async function deleteIssue(id: string) {
     })
 
     revalidatePath("/dashboard")
-    redirect("/dashboard")
+    return { success: true }
   } catch (error) {
     return {
       errors: { _form: ["Failed to delete issue"] },
@@ -444,5 +444,28 @@ export async function getCategories() {
     return categories
   } catch (error) {
     return []
+  }
+}
+
+export async function deleteCategory(id: string) {
+  try {
+    // First, unlink all issues from this category
+    await db.issue.updateMany({
+      where: { categoryId: id },
+      data: { categoryId: null }
+    })
+
+    // Then delete the category
+    await db.category.delete({
+      where: { id },
+    })
+
+    revalidatePath("/dashboard")
+    revalidatePath("/dashboard/categories")
+    return { success: true }
+  } catch (error) {
+    return {
+      errors: { _form: ["Failed to delete category"] },
+    }
   }
 }

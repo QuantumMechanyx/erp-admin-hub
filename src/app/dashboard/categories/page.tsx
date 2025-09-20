@@ -1,8 +1,8 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import { getCategories } from "@/lib/actions"
 import { CategoryForm } from "@/components/category-form"
+import { CategoriesList } from "@/components/categories-list"
 import Link from "next/link"
 import { ArrowLeft, Plus, Settings } from "lucide-react"
 
@@ -53,40 +53,7 @@ export default async function CategoriesPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {categories.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground mb-4">No categories created yet</p>
-                <p className="text-sm text-muted-foreground">
-                  Create your first category to start organizing issues
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {categories.map(category => (
-                  <div key={category.id} className="flex items-center justify-between p-3 border rounded-lg">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <h4 className="font-medium">{category.name}</h4>
-                        {category.color && (
-                          <div 
-                            className="w-3 h-3 rounded-full border"
-                            style={{ backgroundColor: category.color }}
-                          />
-                        )}
-                        <Badge variant="secondary" className="text-xs">
-                          {category._count.issues} issues
-                        </Badge>
-                      </div>
-                      {category.description && (
-                        <p className="text-sm text-muted-foreground">
-                          {category.description}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
+            <CategoriesList categories={categories} />
           </CardContent>
         </Card>
       </div>

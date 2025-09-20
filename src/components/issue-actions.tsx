@@ -32,8 +32,14 @@ export function IssueActions({ issue }: IssueActionsProps) {
   const handleDeleteConfirm = async () => {
     setIsDeleting(true)
     try {
-      await deleteIssue(issue.id)
-      setShowDeleteDialog(false)
+      const result = await deleteIssue(issue.id)
+      if (result?.success) {
+        setShowDeleteDialog(false)
+        // Navigate back to dashboard after successful deletion
+        window.location.href = "/dashboard"
+      } else if (result?.errors) {
+        console.error("Failed to delete issue:", result.errors._form?.[0])
+      }
     } catch (error) {
       console.error("Failed to delete issue:", error)
     } finally {
