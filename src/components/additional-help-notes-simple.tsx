@@ -55,24 +55,14 @@ export function AdditionalHelpNotes({ issueId, notes }: AdditionalHelpNotesProps
         {showAddNote && (
           <form action={formAction} className="space-y-3 p-3 border rounded-lg bg-muted/20">
             <input type="hidden" name="issueId" value={issueId} />
-            
-            <div className="space-y-2">
-              <Label htmlFor="author" className="text-xs">Your Name (optional)</Label>
-              <Input 
-                id="author"
-                name="author" 
-                placeholder="Enter your name..."
-                className="text-sm h-8"
-              />
-            </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="content" className="text-xs">Additional Help Request *</Label>
               <Textarea
                 id="content"
                 name="content"
                 placeholder="Describe what assistance is needed..."
-                rows={2}
+                rows={3}
                 className="text-sm resize-none"
                 required
               />

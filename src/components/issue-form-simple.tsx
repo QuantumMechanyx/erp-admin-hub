@@ -39,7 +39,7 @@ interface IssueFormProps {
 export function IssueFormSimple({ categories, issue, isEditing = false }: IssueFormProps) {
   const router = useRouter()
   const [selectedCategory, setSelectedCategory] = useState(issue?.categoryId || "none")
-  const [selectedPriority, setSelectedPriority] = useState(issue?.priority || "MEDIUM")
+  const [selectedPriority, setSelectedPriority] = useState(issue?.priority || "HIGH")
   const [selectedStatus, setSelectedStatus] = useState(issue?.status || "OPEN")
   const [actionItemsContent, setActionItemsContent] = useState(issue?.actionItemsText || "")
 

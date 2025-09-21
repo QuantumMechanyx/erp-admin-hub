@@ -223,6 +223,12 @@ export async function createCategory(prevState: unknown, formData: FormData) {
 }
 
 export async function createNote(prevState: unknown, formData: FormData) {
+  console.log("createNote called with formData:", {
+    issueId: formData.get("issueId"),
+    content: formData.get("content"),
+    author: formData.get("author"),
+  })
+
   const validatedFields = CreateNoteSchema.safeParse({
     issueId: formData.get("issueId"),
     content: formData.get("content"),
@@ -230,19 +236,23 @@ export async function createNote(prevState: unknown, formData: FormData) {
   })
 
   if (!validatedFields.success) {
+    console.log("Validation failed:", validatedFields.error.flatten().fieldErrors)
     return {
       errors: validatedFields.error.flatten().fieldErrors,
     }
   }
 
   try {
+    console.log("Creating note with data:", validatedFields.data)
     const note = await db.note.create({
       data: validatedFields.data,
     })
+    console.log("Note created successfully:", note)
 
     revalidatePath(`/dashboard/${validatedFields.data.issueId}`)
     return { success: true, note }
   } catch (error) {
+    console.error("Error creating note:", error)
     return {
       errors: { _form: ["Failed to create note"] },
     }

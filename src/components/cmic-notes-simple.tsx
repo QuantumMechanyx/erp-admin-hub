@@ -3,7 +3,6 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Plus, X } from "lucide-react"
 import { createCmicNote } from "@/lib/actions"
@@ -23,7 +22,6 @@ interface CmicNotesProps {
 export function CmicNotes({ issueId, notes }: CmicNotesProps) {
   const [showAddForm, setShowAddForm] = useState(false)
   const [content, setContent] = useState("")
-  const [author, setAuthor] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -31,18 +29,14 @@ export function CmicNotes({ issueId, notes }: CmicNotesProps) {
     if (!content.trim()) return
 
     setIsSubmitting(true)
-    
+
     const formData = new FormData()
     formData.append("issueId", issueId)
     formData.append("content", content)
-    if (author.trim()) {
-      formData.append("author", author)
-    }
 
     try {
       await createCmicNote({}, formData)
       setContent("")
-      setAuthor("")
       setShowAddForm(false)
       // Refresh would be handled by parent component
       window.location.reload()
@@ -80,33 +74,21 @@ export function CmicNotes({ issueId, notes }: CmicNotesProps) {
       {showAddForm && (
         <form onSubmit={handleSubmit} className="space-y-2 p-2 border rounded bg-gray-50">
           <div>
-            <Label htmlFor={`cmic-author-${issueId}`} className="text-xs">Your Name (optional)</Label>
-            <Input
-              id={`cmic-author-${issueId}`}
-              value={author}
-              onChange={(e) => setAuthor(e.target.value)}
-              placeholder="Your name"
-              className="h-8 text-sm mt-1"
-              disabled={isSubmitting}
-            />
-          </div>
-          
-          <div>
             <Label htmlFor={`cmic-content-${issueId}`} className="text-xs">CMiC Note</Label>
             <Textarea
               id={`cmic-content-${issueId}`}
               value={content}
               onChange={(e) => setContent(e.target.value)}
               placeholder="Add CMiC communication or ticket updates..."
-              className="min-h-[60px] text-sm mt-1"
+              className="min-h-[80px] text-sm mt-1"
               required
               disabled={isSubmitting}
             />
           </div>
-          
+
           <div className="flex gap-2">
-            <Button 
-              type="submit" 
+            <Button
+              type="submit"
               size="sm"
               disabled={isSubmitting || !content.trim()}
             >
@@ -119,7 +101,6 @@ export function CmicNotes({ issueId, notes }: CmicNotesProps) {
               onClick={() => {
                 setShowAddForm(false)
                 setContent("")
-                setAuthor("")
               }}
               disabled={isSubmitting}
             >

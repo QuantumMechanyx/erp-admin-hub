@@ -1,8 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useActionState } from "react"
-import { createNote } from "@/lib/actions"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
@@ -26,7 +24,42 @@ interface IssueNotesProps {
 
 export function IssueNotes({ issueId, notes }: IssueNotesProps) {
   const [showAddNote, setShowAddNote] = useState(false)
-  const [state, formAction] = useActionState(createNote, { errors: {} })
+  const [content, setContent] = useState("")
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    if (!content.trim()) return
+
+    setIsSubmitting(true)
+
+    try {
+      const response = await fetch('/api/notes', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          issueId,
+          content: content.trim(),
+        }),
+      })
+
+      const result = await response.json()
+
+      if (response.ok && result.success) {
+        setContent("")
+        setShowAddNote(false)
+        window.location.reload()
+      } else {
+        console.error("Failed to create note:", result.errors)
+      }
+    } catch (error) {
+      console.error("Failed to create note:", error)
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   return (
     <Card>
@@ -53,48 +86,34 @@ export function IssueNotes({ issueId, notes }: IssueNotesProps) {
         {showAddNote && (
           <Card className="border-dashed">
             <CardContent className="pt-4">
-              <form action={formAction} className="space-y-3">
-                <input type="hidden" name="issueId" value={issueId} />
-                
+              <form onSubmit={handleSubmit} className="space-y-3">
                 <div>
-                  <Label htmlFor="author">Your Name (optional)</Label>
-                  <Input
-                    id="author"
-                    name="author"
-                    placeholder="Your name"
-                    className="mt-1"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="content">Note Content</Label>
+                  <Label htmlFor={`content-${issueId}`}>Note Content</Label>
                   <Textarea
-                    id="content"
-                    name="content"
+                    id={`content-${issueId}`}
+                    value={content}
+                    onChange={(e) => setContent(e.target.value)}
                     placeholder="Add your note, update, or observation..."
-                    rows={3}
+                    rows={4}
                     className="mt-1"
+                    required
+                    disabled={isSubmitting}
                   />
-                  {state.errors?.content && (
-                    <p className="text-sm text-red-600 mt-1">{state.errors.content[0]}</p>
-                  )}
                 </div>
-                
-                {state.errors?._form && (
-                  <div className="bg-red-50 border border-red-200 rounded-md p-3">
-                    <p className="text-sm text-red-600">{state.errors._form[0]}</p>
-                  </div>
-                )}
-                
+
                 <div className="flex gap-2">
-                  <Button type="submit" size="sm">
-                    Add Note
+                  <Button type="submit" size="sm" disabled={isSubmitting || !content.trim()}>
+                    {isSubmitting ? "Adding..." : "Add Note"}
                   </Button>
-                  <Button 
-                    type="button" 
-                    variant="outline" 
+                  <Button
+                    type="button"
+                    variant="outline"
                     size="sm"
-                    onClick={() => setShowAddNote(false)}
+                    onClick={() => {
+                      setShowAddNote(false)
+                      setContent("")
+                    }}
+                    disabled={isSubmitting}
                   >
                     Cancel
                   </Button>

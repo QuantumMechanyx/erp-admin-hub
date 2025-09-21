@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 
 export async function GET() {
   try {
+    // Fetch individual action items
     const actionItems = await db.actionItem.findMany({
       include: {
         issue: {
@@ -40,7 +41,41 @@ export async function GET() {
       ]
     })
 
-    return NextResponse.json(actionItems)
+    // Fetch issues with rich text action items
+    const issuesWithActionItems = await db.issue.findMany({
+      where: {
+        actionItemsText: {
+          not: null
+        },
+        NOT: {
+          actionItemsText: ''
+        }
+      },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        actionItemsText: true,
+        priority: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+        category: {
+          select: {
+            name: true,
+            color: true
+          }
+        }
+      },
+      orderBy: [
+        { updatedAt: 'desc' }
+      ]
+    })
+
+    return NextResponse.json({
+      actionItems,
+      issuesWithActionItems
+    })
   } catch (error) {
     console.error('Error fetching action items:', error)
     return NextResponse.json(

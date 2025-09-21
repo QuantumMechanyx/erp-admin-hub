@@ -271,22 +271,12 @@ export function SupportTicketManager({ issue, cmicNotes }: SupportTicketManagerP
                     <input type="hidden" name="issueId" value={issue.id} />
 
                     <div>
-                      <Label htmlFor="author">Your Name (optional)</Label>
-                      <Input
-                        id="author"
-                        name="author"
-                        placeholder="Your name"
-                        className="mt-1"
-                      />
-                    </div>
-
-                    <div>
                       <Label htmlFor="content">Support Communication</Label>
                       <Textarea
                         id="content"
                         name="content"
                         placeholder="Paste email content from support or add manual notes about ticket progress..."
-                        rows={6}
+                        rows={7}
                         className="mt-1"
                       />
                       <p className="text-xs text-muted-foreground mt-1">

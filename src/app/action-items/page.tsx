@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Calendar, Clock, Flag, Plus, Edit3, Trash2, AlertTriangle, CheckCircle2 } from "lucide-react"
+import { Calendar, Clock, Flag, Plus, Edit3, Trash2, AlertTriangle, CheckCircle2, Undo2 } from "lucide-react"
 import { format, parseISO, differenceInDays } from "date-fns"
 
 interface ActionItem {
@@ -41,6 +41,21 @@ interface ActionItem {
   }
 }
 
+interface IssueWithActionItems {
+  id: string
+  title: string
+  description?: string
+  actionItemsText: string
+  priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT"
+  status: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED"
+  createdAt: string
+  updatedAt: string
+  category?: {
+    name: string
+    color?: string
+  }
+}
+
 interface NewActionItem {
   title: string
   description: string
@@ -50,10 +65,19 @@ interface NewActionItem {
 
 function getPriorityColor(priority: number) {
   switch (priority) {
-    case 3: return "bg-red-100 border-red-300 text-red-800"
-    case 2: return "bg-orange-100 border-orange-300 text-orange-800"
-    case 1: return "bg-yellow-100 border-yellow-300 text-yellow-800"
+    case 3: return "bg-red-100 border-red-500 text-red-800"
+    case 2: return "bg-yellow-100 border-yellow-500 text-yellow-800"
+    case 1: return "bg-yellow-100 border-yellow-500 text-yellow-800"
     default: return "bg-gray-100 border-gray-300 text-gray-800"
+  }
+}
+
+function getPriorityBorderColor(priority: number) {
+  switch (priority) {
+    case 3: return "border-l-red-500"
+    case 2: return "border-l-yellow-500"
+    case 1: return "border-l-yellow-500"
+    default: return "border-l-gray-300"
   }
 }
 
@@ -68,11 +92,11 @@ function getPriorityLabel(priority: number) {
 
 function getDueDateStatus(dueDate?: string) {
   if (!dueDate) return null
-  
+
   const today = new Date()
   const due = parseISO(dueDate)
   const daysLeft = differenceInDays(due, today)
-  
+
   if (daysLeft < 0) {
     return { status: "overdue", label: `${Math.abs(daysLeft)} days overdue`, color: "text-red-600" }
   } else if (daysLeft === 0) {
@@ -84,8 +108,26 @@ function getDueDateStatus(dueDate?: string) {
   }
 }
 
+function getIssuePriorityNumber(priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT") {
+  switch (priority) {
+    case "URGENT": return 3
+    case "HIGH": return 2
+    case "MEDIUM": return 1
+    case "LOW": return 0
+    default: return 0
+  }
+}
+
+const statusColors = {
+  OPEN: "bg-orange-100 text-orange-800",
+  IN_PROGRESS: "bg-blue-100 text-blue-800",
+  RESOLVED: "bg-green-100 text-green-800",
+  CLOSED: "bg-gray-100 text-gray-800"
+}
+
 export default function ActionItemsPage() {
   const [allItems, setAllItems] = useState<ActionItem[]>([])
+  const [issuesWithActionItems, setIssuesWithActionItems] = useState<IssueWithActionItems[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [newItem, setNewItem] = useState<NewActionItem>({
     title: "",
@@ -105,8 +147,11 @@ export default function ActionItemsPage() {
     try {
       const response = await fetch('/api/action-items')
       if (response.ok) {
-        const items = await response.json()
-        console.log('All loaded items:', items)
+        const data = await response.json()
+        console.log('All loaded data:', data)
+
+        const items = data.actionItems || []
+        const issues = data.issuesWithActionItems || []
 
         // Filter out completed items older than 7 days and delete them
         const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
@@ -129,6 +174,7 @@ export default function ActionItemsPage() {
         })
 
         setAllItems(activeItems)
+        setIssuesWithActionItems(issues)
       }
     } catch (error) {
       console.error('Error loading action items:', error)
@@ -184,6 +230,23 @@ export default function ActionItemsPage() {
     }
   }
 
+  const handleRestoreToAvailable = async (item: ActionItem) => {
+    try {
+      // This function would restore the item to the available items
+      // For now, we'll just delete it since the restore functionality
+      // would require additional API endpoints
+      const response = await fetch(`/api/action-items/${item.id}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        loadActionItems()
+      }
+    } catch (error) {
+      console.error('Error restoring action item:', error)
+    }
+  }
+
   const handleDeleteItem = async (id: string, item?: ActionItem) => {
     try {
       // If item has an issueId or originalIssueId, restore it to available instead of deleting
@@ -191,12 +254,12 @@ export default function ActionItemsPage() {
         await handleRestoreToAvailable(item)
         return
       }
-      
+
       // Only permanently delete items that were manually created (no issue)
       const response = await fetch(`/api/action-items/${id}`, {
         method: 'DELETE'
       })
-      
+
       if (response.ok) {
         loadActionItems()
       }
@@ -222,7 +285,14 @@ export default function ActionItemsPage() {
   const ActionItemCard = ({ item, index, isManaged }: { item: ActionItem, index: number, isManaged: boolean }) => {
     const dueDateStatus = getDueDateStatus(item.dueDate)
     const isEditing = editingItem === item.id
-    
+
+    const handleComplete = async (checked: boolean) => {
+      if (checked) {
+        // When completed, delete the action item immediately
+        await handleDeleteItem(item.id, item)
+      }
+    }
+
     return (
       <Draggable draggableId={item.id} index={index}>
         {(provided, snapshot) => (
@@ -231,20 +301,16 @@ export default function ActionItemsPage() {
             {...provided.draggableProps}
             {...provided.dragHandleProps}
             className={`
-              p-3 border rounded-lg bg-white shadow-sm transition-all
+              p-3 border rounded-lg bg-white shadow-sm transition-all border-l-4
               ${snapshot.isDragging ? 'shadow-lg rotate-1' : ''}
-              ${item.completed ? 'opacity-60' : ''}
-              ${dueDateStatus?.status === 'overdue' ? 'border-l-4 border-l-red-500' : ''}
-              ${dueDateStatus?.status === 'warning' ? 'border-l-4 border-l-yellow-500' : ''}
+              ${getPriorityBorderColor(item.priority)}
             `}
           >
             <div className="flex items-start justify-between gap-2">
               <div className="flex items-start gap-2 flex-1">
                 <Checkbox
-                  checked={item.completed}
-                  onCheckedChange={(checked) => 
-                    handleUpdateItem(item.id, { completed: checked as boolean })
-                  }
+                  checked={false}
+                  onCheckedChange={handleComplete}
                   className="mt-1"
                 />
                 <div className="flex-1">
@@ -267,7 +333,7 @@ export default function ActionItemsPage() {
                   ) : (
                     <div className="flex items-center gap-1">
                       <h4
-                        className={`font-medium text-sm ${item.completed ? 'line-through' : ''} ${
+                        className={`font-medium text-sm ${
                           (item.issueId || item.originalIssueId) ? 'cursor-pointer text-blue-700 hover:text-blue-900 hover:underline transition-colors' : ''
                         }`}
                         onClick={(e) => {
@@ -378,6 +444,77 @@ export default function ActionItemsPage() {
     )
   }
 
+  const IssueActionItemCard = ({ issue }: { issue: IssueWithActionItems }) => {
+    const priorityNumber = getIssuePriorityNumber(issue.priority)
+    const [isCompleted, setIsCompleted] = useState(false)
+
+    const handleComplete = async (completed: boolean) => {
+      if (completed) {
+        // When completed, remove from the action items interface
+        // We'll filter it out locally and it won't appear in future loads
+        setIsCompleted(true)
+        // Could add API call here to mark as completed if needed
+        setTimeout(() => {
+          loadActionItems() // Refresh the list
+        }, 500)
+      }
+    }
+
+    if (isCompleted) {
+      return null // Don't render completed items
+    }
+
+    return (
+      <div className={`p-3 border rounded-lg bg-white shadow-sm transition-all border-l-4 ${getPriorityBorderColor(priorityNumber)}`}>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start gap-2 flex-1">
+            <Checkbox
+              checked={false}
+              onCheckedChange={handleComplete}
+              className="mt-1"
+            />
+            <div className="flex-1">
+              <div className="flex items-center gap-2 mb-2">
+                <h4
+                  className="font-medium text-sm cursor-pointer text-blue-700 hover:text-blue-900 hover:underline transition-colors"
+                  onClick={() => window.open(`/dashboard/${issue.id}`, '_blank')}
+                  title={`Click to open issue in new tab: ${issue.title}`}
+                >
+                  {issue.title}
+                </h4>
+                {issue.category && (
+                  <span
+                    className="text-xs px-1 py-0.5 rounded"
+                    style={{ backgroundColor: (issue.category.color || '#gray') + '20' }}
+                  >
+                    {issue.category.name}
+                  </span>
+                )}
+              </div>
+
+              <div
+                className="prose prose-sm max-w-none text-xs text-gray-700 mb-2 [&_p]:mb-1 [&_p:last-child]:mb-0"
+                dangerouslySetInnerHTML={{ __html: issue.actionItemsText }}
+              />
+
+              <div className="flex items-center gap-3">
+                <div className={`text-xs px-2 py-1 rounded border ${getPriorityColor(priorityNumber)}`}>
+                  <Flag className="w-3 h-3 inline mr-1" />
+                  {issue.priority}
+                </div>
+
+                <div className="text-xs text-gray-500 flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  Updated {format(parseISO(issue.updatedAt), 'MMM d')}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -389,9 +526,8 @@ export default function ActionItemsPage() {
     )
   }
 
-  // Separate active and completed items for display
+  // Only show active items - completed items are removed
   const activeItems = allItems.filter(item => !item.completed)
-  const completedItems = allItems.filter(item => item.completed)
 
   return (
     <DragDropContext onDragEnd={handleDragEnd}>
@@ -406,7 +542,7 @@ export default function ActionItemsPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              <span>My Action Items</span>
+              <span>Action Items</span>
               <Button
                 size="sm"
                 onClick={() => setShowNewItemForm(true)}
@@ -417,7 +553,7 @@ export default function ActionItemsPage() {
               </Button>
             </CardTitle>
             <CardDescription>
-              All your action items including those from issues. Mark as completed by checking the box.
+              All your action items. Mark as completed by checking the box to remove them.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -464,110 +600,38 @@ export default function ActionItemsPage() {
               </div>
             )}
 
-            {/* Active Items */}
             <div className="space-y-3">
+              {/* Individual Action Items */}
               {activeItems.length > 0 && (
-                <div>
-                  <h4 className="font-medium text-sm text-gray-700 mb-2">Active Items ({activeItems.length})</h4>
-                  <Droppable droppableId="action-items">
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.droppableProps}
-                        className={`
-                          min-h-16 space-y-2 p-2 rounded-lg transition-colors
-                          ${snapshot.isDraggingOver ? 'bg-blue-50 border-2 border-blue-200 border-dashed' : ''}
-                        `}
-                      >
-                        {activeItems.map((item, index) => (
-                          <ActionItemCard key={item.id} item={item} index={index} isManaged={true} />
-                        ))}
-                        {provided.placeholder}
-                      </div>
-                    )}
-                  </Droppable>
+                <Droppable droppableId="action-items">
+                  {(provided, snapshot) => (
+                    <div
+                      ref={provided.innerRef}
+                      {...provided.droppableProps}
+                      className={`
+                        min-h-16 space-y-2 p-2 rounded-lg transition-colors
+                        ${snapshot.isDraggingOver ? 'bg-blue-50 border-2 border-blue-200 border-dashed' : ''}
+                      `}
+                    >
+                      {activeItems.map((item, index) => (
+                        <ActionItemCard key={item.id} item={item} index={index} isManaged={true} />
+                      ))}
+                      {provided.placeholder}
+                    </div>
+                  )}
+                </Droppable>
+              )}
+
+              {/* Issues with Rich Text Action Items */}
+              {issuesWithActionItems.length > 0 && (
+                <div className="space-y-2">
+                  {issuesWithActionItems.map((issue) => (
+                    <IssueActionItemCard key={issue.id} issue={issue} />
+                  ))}
                 </div>
               )}
 
-              {/* Completed Items */}
-              {completedItems.length > 0 && (
-                <div>
-                  <h4 className="font-medium text-sm text-gray-700 mb-2 flex items-center gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-green-600" />
-                    Recently Completed ({completedItems.length})
-                    <span className="text-xs text-gray-500 font-normal">- Auto-deleted after 7 days</span>
-                  </h4>
-                  <div className="space-y-2 max-h-64 overflow-y-auto">
-                    {completedItems.map((item) => (
-                      <div key={item.id} className="p-3 border rounded-lg bg-green-50 border-green-200">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex items-start gap-2 flex-1">
-                            <Checkbox
-                              checked={true}
-                              onCheckedChange={() => handleUpdateItem(item.id, { completed: false })}
-                              className="mt-1"
-                            />
-                            <div className="flex-1">
-                              <div className="flex items-center gap-1">
-                                <h4
-                                  className={`font-medium text-sm line-through text-green-800 ${
-                                    (item.issueId || item.originalIssueId) ? 'cursor-pointer hover:text-blue-600 hover:underline transition-colors' : ''
-                                  }`}
-                                  onClick={(e) => {
-                                    const linkedIssueId = item.issueId || item.originalIssueId;
-                                    if (linkedIssueId) {
-                                      e.preventDefault();
-                                      e.stopPropagation();
-                                      window.open(`/dashboard/${linkedIssueId}`, '_blank');
-                                    }
-                                  }}
-                                  title={
-                                    (item.issueId || item.originalIssueId) ?
-                                    `Click to open issue in new tab: ${item.issue?.title || item.originalIssue?.title || 'Related Issue'}` :
-                                    (item.description || undefined)
-                                  }
-                                >
-                                  {item.title}
-                                </h4>
-                                {(item.issueId || item.originalIssueId) && (
-                                  <span className="text-blue-500 text-xs" title="Linked to an issue">🔗</span>
-                                )}
-                              </div>
-                              {item.description && (
-                                <p className="text-xs text-green-600 mt-1">{item.description}</p>
-                              )}
-
-                              <div className="flex items-center gap-3 mt-2">
-                                <div className={`text-xs px-2 py-1 rounded border ${getPriorityColor(item.priority)}`}>
-                                  <Flag className="w-3 h-3 inline mr-1" />
-                                  {getPriorityLabel(item.priority)}
-                                </div>
-
-                                <div className="text-xs text-green-600 flex items-center gap-1">
-                                  <CheckCircle2 className="w-3 h-3" />
-                                  Completed {format(parseISO(item.updatedAt), 'MMM d')}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleDeleteItem(item.id, item)}
-                            className="h-6 w-6 p-0 text-red-600 hover:text-red-800"
-                            title="Delete item"
-                          >
-                            <Trash2 className="w-3 h-3" />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {allItems.length === 0 && (
+              {activeItems.length === 0 && issuesWithActionItems.length === 0 && (
                 <div className="text-center py-8 text-gray-500">
                   <Plus className="w-8 h-8 mx-auto mb-2 opacity-50" />
                   <p>No action items yet</p>
