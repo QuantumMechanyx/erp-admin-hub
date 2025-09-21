@@ -9,7 +9,6 @@ import { IssueActions } from "@/components/issue-actions"
 import { SupportTicketManager } from "@/components/support-ticket-manager"
 import { AdditionalHelpNotes } from "@/components/additional-help-notes-simple"
 import { RelatedZendeskTickets } from "@/components/related-zendesk-tickets"
-import { ActionItemChecklist } from "@/components/action-item-checklist"
 import Link from "next/link"
 import { ArrowLeft, Edit, Calendar, User, AlertTriangle, ChevronDown } from "lucide-react"
 import { formatDistanceToNow, format } from "date-fns"
@@ -193,7 +192,19 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
             </Collapsible>
           )}
 
-          <ActionItemChecklist issueId={issue.id} actionItems={issue.actionItems} />
+          {issue.actionItemsText && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Action Items</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div
+                  className="prose prose-sm max-w-none [&_p]:mb-3 [&_p:last-child]:mb-0"
+                  dangerouslySetInnerHTML={{ __html: issue.actionItemsText }}
+                />
+              </CardContent>
+            </Card>
+          )}
 
           <IssueNotes issueId={issue.id} notes={issue.notes} />
         </div>

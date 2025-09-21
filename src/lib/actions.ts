@@ -13,6 +13,7 @@ const CreateIssueSchema = z.object({
   roadblocks: z.string().nullable().transform(val => val || undefined),
   usersInvolved: z.string().nullable().transform(val => val || undefined),
   additionalHelp: z.string().nullable().transform(val => val || undefined),
+  actionItemsText: z.string().nullable().transform(val => val || undefined),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "URGENT"]),
   status: z.enum(["OPEN", "IN_PROGRESS", "RESOLVED", "CLOSED"]),
   categoryId: z.union([z.string(), z.undefined()]).transform(val => val || undefined),
@@ -67,6 +68,7 @@ export async function createIssue(prevState: unknown, formData: FormData) {
     roadblocks: formData.get("roadblocks"),
     usersInvolved: formData.get("usersInvolved"),
     additionalHelp: formData.get("additionalHelp"),
+    actionItemsText: formData.get("actionItemsText"),
     priority: formData.get("priority"),
     status: formData.get("status"),
     categoryId: categoryId === "none" ? undefined : categoryId || undefined,
@@ -74,6 +76,9 @@ export async function createIssue(prevState: unknown, formData: FormData) {
     cmicTicketNumber: formData.get("cmicTicketNumber"),
     cmicTicketOpened: formData.get("cmicTicketOpened"),
     cmicTicketClosed: formData.get("cmicTicketClosed") === "true",
+    procoreTicketNumber: formData.get("procoreTicketNumber"),
+    procoreTicketOpened: formData.get("procoreTicketOpened"),
+    procoreTicketClosed: formData.get("procoreTicketClosed") === "true",
   }
   
   console.log("🔍 Data to validate:", data)
@@ -94,7 +99,7 @@ export async function createIssue(prevState: unknown, formData: FormData) {
   }
 
   try {
-    console.log("💾 Creating issue in database with data:", validatedFields.data)
+    console.log("💾 Creating issue in database with data:", JSON.stringify(validatedFields.data, null, 2))
     const issue = await db.issue.create({
       data: validatedFields.data,
     })
@@ -121,6 +126,7 @@ export async function updateIssue(id: string, prevState: unknown, formData: Form
     roadblocks: formData.get("roadblocks"),
     usersInvolved: formData.get("usersInvolved"),
     additionalHelp: formData.get("additionalHelp"),
+    actionItemsText: formData.get("actionItemsText"),
     priority: formData.get("priority"),
     status: formData.get("status"),
     categoryId: categoryId === "none" ? undefined : categoryId || undefined,
@@ -128,6 +134,9 @@ export async function updateIssue(id: string, prevState: unknown, formData: Form
     cmicTicketNumber: formData.get("cmicTicketNumber"),
     cmicTicketOpened: formData.get("cmicTicketOpened"),
     cmicTicketClosed: formData.get("cmicTicketClosed") === "true",
+    procoreTicketNumber: formData.get("procoreTicketNumber"),
+    procoreTicketOpened: formData.get("procoreTicketOpened"),
+    procoreTicketClosed: formData.get("procoreTicketClosed") === "true",
   })
 
   if (!validatedFields.success) {

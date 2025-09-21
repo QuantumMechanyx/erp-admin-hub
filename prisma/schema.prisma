@@ -24,6 +24,7 @@ model Issue {
   usersInvolved       String?
   workPerformed       String?
   workOrganization    String?
+  actionItemsText     String?  @db.Text // Rich text for action items
   actionItems         ActionItem[]
   originalActionItems ActionItem[] @relation("OriginalActionItems")
   cmicTicketClosed    Boolean              @default(false)

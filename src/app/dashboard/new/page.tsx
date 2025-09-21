@@ -1,5 +1,4 @@
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { IssueForm } from "@/components/issue-form"
+import { IssueFormSimple } from "@/components/issue-form-simple"
 import { getCategories } from "@/lib/actions"
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
@@ -20,23 +19,14 @@ export default async function NewIssuePage() {
         <div>
           <h1 className="text-3xl font-bold">Create New Issue</h1>
           <p className="text-muted-foreground">
-            Document a new ERP integration issue with detailed information
+            Document a new issue with description and action items
           </p>
         </div>
       </div>
 
-      <Card className="max-w-4xl">
-        <CardHeader>
-          <CardTitle>Issue Details</CardTitle>
-          <CardDescription>
-            Provide comprehensive information about the ERP issue including the problem, 
-            resolution plan, work performed, and any roadblocks encountered.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <IssueForm categories={categories} />
-        </CardContent>
-      </Card>
+      <div className="max-w-4xl">
+        <IssueFormSimple categories={categories} />
+      </div>
     </div>
   )
 }
