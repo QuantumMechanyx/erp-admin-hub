@@ -92,7 +92,7 @@ export default function Dashboard() {
         </CardHeader>
         <CardContent>
           <Suspense fallback={<div>Loading issues...</div>}>
-            <IssuesList issues={issues} categories={categories} />
+            <IssuesList issues={issues} categories={categories} hideRedundantStatus={true} />
           </Suspense>
         </CardContent>
       </Card>
@@ -118,7 +118,7 @@ export default function Dashboard() {
           <CollapsibleContent>
             <CardContent>
               <Suspense fallback={<div>Loading resolved issues...</div>}>
-                <IssuesList issues={resolvedIssues} categories={categories} showCreateButton={false} />
+                <IssuesList issues={resolvedIssues} categories={categories} showCreateButton={false} hideRedundantStatus={true} />
               </Suspense>
             </CardContent>
           </CollapsibleContent>

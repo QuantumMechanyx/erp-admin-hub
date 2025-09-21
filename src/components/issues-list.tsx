@@ -34,6 +34,7 @@ interface IssuesListProps {
   issues: Issue[]
   categories: Category[]
   showCreateButton?: boolean
+  hideRedundantStatus?: boolean
 }
 
 const priorityColors = {
@@ -50,7 +51,7 @@ const statusColors = {
   CLOSED: "bg-gray-100 text-gray-800"
 }
 
-export function IssuesList({ issues, categories, showCreateButton = true }: IssuesListProps) {
+export function IssuesList({ issues, categories, showCreateButton = true, hideRedundantStatus = false }: IssuesListProps) {
   const [searchTerm, setSearchTerm] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [priorityFilter, setPriorityFilter] = useState<string>("all")
@@ -162,9 +163,11 @@ export function IssuesList({ issues, categories, showCreateButton = true }: Issu
                     <Badge className={priorityColors[issue.priority]}>
                       {issue.priority}
                     </Badge>
-                    <Badge className={statusColors[issue.status]}>
-                      {issue.status.replace("_", " ")}
-                    </Badge>
+                    {!hideRedundantStatus && (
+                      <Badge className={statusColors[issue.status]}>
+                        {issue.status.replace("_", " ")}
+                      </Badge>
+                    )}
                   </div>
                 </div>
               </div>
