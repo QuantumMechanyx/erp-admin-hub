@@ -88,6 +88,7 @@ model ActionItem {
   completed       Boolean  @default(false)
   priority        Int      @default(0)
   dueDate         DateTime?
+  order           Int      @default(0)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   issue           Issue?   @relation(fields: [issueId], references: [id], onDelete: Cascade)

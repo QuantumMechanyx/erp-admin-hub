@@ -35,6 +35,7 @@ export async function GET() {
       },
       orderBy: [
         { completed: 'asc' },
+        { order: 'asc' },
         { priority: 'desc' },
         { dueDate: 'asc' },
         { createdAt: 'desc' }
@@ -108,13 +109,22 @@ export async function POST(request: NextRequest) {
       }, { status: 400 })
     }
 
+    // Get the highest order number and add 1 for the new item
+    const maxOrderResult = await db.actionItem.aggregate({
+      _max: {
+        order: true
+      }
+    })
+    const nextOrder = (maxOrderResult._max.order || 0) + 1
+
     const createData = {
       issueId: issueId || null,
       originalIssueId: issueId || null,
       title,
       description,
       priority: priority || 0,
-      dueDate: dueDate ? new Date(dueDate) : null
+      dueDate: dueDate ? new Date(dueDate) : null,
+      order: nextOrder
     }
     
     console.log('💾 Creating action item with data:', createData)
@@ -148,6 +158,42 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: false,
       error: 'Failed to create action item'
+    }, { status: 500 })
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    console.log('🔧 PUT action items reorder request received')
+    const { reorderedItems } = await request.json()
+
+    console.log('📋 Reordered items:', reorderedItems)
+
+    if (!Array.isArray(reorderedItems)) {
+      return NextResponse.json({
+        success: false,
+        error: 'reorderedItems must be an array'
+      }, { status: 400 })
+    }
+
+    // Update order for each item
+    const updatePromises = reorderedItems.map((item: { id: string, order: number }) =>
+      db.actionItem.update({
+        where: { id: item.id },
+        data: { order: item.order }
+      })
+    )
+
+    await Promise.all(updatePromises)
+
+    console.log('✅ Action items reordered successfully')
+    return NextResponse.json({ success: true })
+
+  } catch (error) {
+    console.error('❌ Error reordering action items:', error)
+    return NextResponse.json({
+      success: false,
+      error: 'Failed to reorder action items'
     }, { status: 500 })
   }
 }

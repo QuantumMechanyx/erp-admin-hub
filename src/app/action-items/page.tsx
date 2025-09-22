@@ -1,13 +1,30 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd"
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  verticalListSortingStrategy,
+} from '@dnd-kit/sortable'
+import {
+  useSortable,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
-import { Checkbox } from "@/components/ui/checkbox"
-import { Calendar, Clock, Flag, Plus, Edit3, Trash2, AlertTriangle, CheckCircle2, Undo2 } from "lucide-react"
+import { Calendar, Clock, Flag, Plus, Edit3, Trash2, AlertTriangle, CheckCircle2, Undo2, GripVertical } from "lucide-react"
 import { format, parseISO, differenceInDays } from "date-fns"
 
 interface ActionItem {
@@ -17,6 +34,7 @@ interface ActionItem {
   completed: boolean
   priority: number
   dueDate?: string
+  order: number
   createdAt: string
   updatedAt: string
   issueId?: string
@@ -149,6 +167,7 @@ export default function ActionItemsPage() {
       if (response.ok) {
         const data = await response.json()
         console.log('All loaded data:', data)
+        console.log('Sample action item structure:', data.actionItems?.[0])
 
         const items = data.actionItems || []
         const issues = data.issuesWithActionItems || []
@@ -185,18 +204,18 @@ export default function ActionItemsPage() {
 
   const handleCreateItem = async () => {
     if (!newItem.title.trim()) return
-    
+
     try {
       const response = await fetch('/api/action-items', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newItem)
       })
-      
+
       if (response.ok) {
         setNewItem({ title: "", description: "", priority: 0, dueDate: "" })
         setShowNewItemForm(false)
-        loadActionItems() // Reload to get updated list
+        loadActionItems()
       }
     } catch (error) {
       console.error('Error creating action item:', error)
@@ -211,9 +230,9 @@ export default function ActionItemsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates)
       })
-      
+
       console.log('Response status:', response.status)
-      
+
       if (response.ok) {
         console.log('Response OK, reloading items')
         const result = await response.json()
@@ -232,9 +251,6 @@ export default function ActionItemsPage() {
 
   const handleRestoreToAvailable = async (item: ActionItem) => {
     try {
-      // This function would restore the item to the available items
-      // For now, we'll just delete it since the restore functionality
-      // would require additional API endpoints
       const response = await fetch(`/api/action-items/${item.id}`, {
         method: 'DELETE'
       })
@@ -249,13 +265,11 @@ export default function ActionItemsPage() {
 
   const handleDeleteItem = async (id: string, item?: ActionItem) => {
     try {
-      // If item has an issueId or originalIssueId, restore it to available instead of deleting
       if (item?.originalIssueId) {
         await handleRestoreToAvailable(item)
         return
       }
 
-      // Only permanently delete items that were manually created (no issue)
       const response = await fetch(`/api/action-items/${id}`, {
         method: 'DELETE'
       })
@@ -268,179 +282,260 @@ export default function ActionItemsPage() {
     }
   }
 
-  const handleDragEnd = async (result: any) => {
-    const { destination, source, draggableId } = result
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  )
 
-    if (!destination) return
+  const handleDragStart = (event: any) => {
+    console.log("🚀 DND-KIT DRAG START - Event:", event)
+  }
 
-    // Reordering within the same list (local only)
-    if (source.droppableId === destination.droppableId && source.droppableId === 'action-items') {
-      const newItems = Array.from(allItems)
-      const [reorderedItem] = newItems.splice(source.index, 1)
-      newItems.splice(destination.index, 0, reorderedItem)
-      setAllItems(newItems)
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+
+    console.log("🎯 DND-KIT DRAG END - Event:", event)
+
+    if (!over || active.id === over.id) {
+      console.log("❌ DND-KIT - No change needed")
+      return
+    }
+
+    console.log("📍 DND-KIT - Moving:", active.id, "to position of:", over.id)
+
+    // Check if we're reordering action items
+    const activeItems = allItems.filter(item => !item.completed)
+    const oldIndex = activeItems.findIndex(item => item.id === active.id)
+    const newIndex = activeItems.findIndex(item => item.id === over.id)
+
+    if (oldIndex !== -1 && newIndex !== -1) {
+      // Reordering action items
+      console.log("📍 DND-KIT - Reordering action items - Old index:", oldIndex, "New index:", newIndex)
+
+      const newItems = arrayMove(activeItems, oldIndex, newIndex)
+
+      const allItemsUpdated = [
+        ...newItems,
+        ...allItems.filter(item => item.completed)
+      ]
+      setAllItems(allItemsUpdated)
+
+      const reorderedItems = newItems.map((item, index) => ({
+        id: item.id,
+        order: index
+      }))
+
+      try {
+        const response = await fetch('/api/action-items', {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ reorderedItems }),
+        })
+
+        if (!response.ok) {
+          console.error('Failed to save new order')
+          loadActionItems()
+        } else {
+          console.log("✅ DND-KIT - Action item order saved successfully")
+        }
+      } catch (error) {
+        console.error('Error saving new order:', error)
+        loadActionItems()
+      }
+      return
+    }
+
+    // Check if we're reordering issues with action items
+    const oldIssueIndex = issuesWithActionItems.findIndex(issue => issue.id === active.id)
+    const newIssueIndex = issuesWithActionItems.findIndex(issue => issue.id === over.id)
+
+    if (oldIssueIndex !== -1 && newIssueIndex !== -1) {
+      // Reordering issues (frontend only - no persistence to database)
+      console.log("📍 DND-KIT - Reordering issues - Old index:", oldIssueIndex, "New index:", newIssueIndex)
+
+      const newIssues = arrayMove(issuesWithActionItems, oldIssueIndex, newIssueIndex)
+      setIssuesWithActionItems(newIssues)
+      console.log("✅ DND-KIT - Issue order updated (frontend only)")
     }
   }
 
-  const ActionItemCard = ({ item, index, isManaged }: { item: ActionItem, index: number, isManaged: boolean }) => {
+  const ActionItemCard = ({ item, isManaged }: { item: ActionItem, isManaged: boolean }) => {
     const dueDateStatus = getDueDateStatus(item.dueDate)
     const isEditing = editingItem === item.id
 
-    const handleComplete = async (checked: boolean) => {
-      if (checked) {
-        // When completed, delete the action item immediately
-        await handleDeleteItem(item.id, item)
-      }
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: item.id })
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
     }
 
     return (
-      <Draggable draggableId={item.id} index={index}>
-        {(provided, snapshot) => (
-          <div
-            ref={provided.innerRef}
-            {...provided.draggableProps}
-            {...provided.dragHandleProps}
-            className={`
-              p-3 border rounded-lg bg-white shadow-sm transition-all border-l-4
-              ${snapshot.isDragging ? 'shadow-lg rotate-1' : ''}
-              ${getPriorityBorderColor(item.priority)}
-            `}
-          >
-            <div className="flex items-start justify-between gap-2">
-              <div className="flex items-start gap-2 flex-1">
-                <Checkbox
-                  checked={false}
-                  onCheckedChange={handleComplete}
-                  className="mt-1"
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={`p-3 border rounded-lg bg-white shadow-sm transition-all border-l-4 ${isDragging ? 'shadow-lg rotate-1 scale-105 z-50' : ''} ${getPriorityBorderColor(item.priority)}`}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex items-start gap-2 flex-1">
+            <div
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing p-1 -m-1 hover:bg-gray-100 rounded"
+              title="Drag to reorder"
+              onMouseDown={() => console.log("🖱️ Mouse down on grip handle for item:", item.id)}
+              onTouchStart={() => console.log("👆 Touch start on grip handle for item:", item.id)}
+            >
+              <GripVertical className="w-4 h-4 text-gray-400" />
+            </div>
+            <div className="flex-1">
+              {isEditing ? (
+                <Input
+                  value={editingNote[item.id] || item.title}
+                  onChange={(e) => setEditingNote(prev => ({ ...prev, [item.id]: e.target.value }))}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleUpdateItem(item.id, { title: editingNote[item.id] || item.title })
+                    }
+                    if (e.key === 'Escape') {
+                      setEditingItem(null)
+                      setEditingNote(prev => ({ ...prev, [item.id]: "" }))
+                    }
+                  }}
+                  className="text-sm"
+                  autoFocus
                 />
-                <div className="flex-1">
-                  {isEditing ? (
-                    <Input
-                      value={editingNote[item.id] || item.title}
-                      onChange={(e) => setEditingNote(prev => ({ ...prev, [item.id]: e.target.value }))}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') {
-                          handleUpdateItem(item.id, { title: editingNote[item.id] || item.title })
-                        }
-                        if (e.key === 'Escape') {
-                          setEditingItem(null)
-                          setEditingNote(prev => ({ ...prev, [item.id]: "" }))
-                        }
-                      }}
-                      className="text-sm"
-                      autoFocus
-                    />
-                  ) : (
-                    <div className="flex items-center gap-1">
-                      <h4
-                        className={`font-medium text-sm ${
-                          (item.issueId || item.originalIssueId) ? 'cursor-pointer text-blue-700 hover:text-blue-900 hover:underline transition-colors' : ''
-                        }`}
-                        onClick={(e) => {
-                          const linkedIssueId = item.issueId || item.originalIssueId;
-                          if (linkedIssueId) {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            window.open(`/dashboard/${linkedIssueId}`, '_blank');
-                          }
-                        }}
-                        title={
-                          (item.issueId || item.originalIssueId) ?
-                          `Click to open issue in new tab: ${item.issue?.title || item.originalIssue?.title || 'Related Issue'}` :
-                          (item.description || undefined)
-                        }
-                      >
-                        {item.title}
-                      </h4>
-                      {(item.issueId || item.originalIssueId) && (
-                        <span className="text-blue-500 text-xs" title="Linked to an issue">🔗</span>
-                      )}
-                    </div>
-                  )}
-                  
-                  {item.description && (
-                    <p className="text-xs text-gray-600 mt-1">{item.description}</p>
-                  )}
-                  
-                  {(item.issue || item.originalIssue) && (
-                    <div className="flex items-center gap-1 mt-1">
-                      <span className="text-xs text-gray-500">From:</span>
-                      <span className="text-xs font-medium text-blue-600 cursor-pointer hover:underline"
-                        onClick={() => window.open(`/dashboard/${item.issueId || item.originalIssueId}`, '_blank')}
-                        title="Click to open issue">{item.issue?.title || item.originalIssue?.title}</span>
-                      {(item.issue?.category || item.originalIssue?.category) && (
-                        <span
-                          className="text-xs px-1 py-0.5 rounded"
-                          style={{ backgroundColor: (item.issue?.category?.color || item.originalIssue?.category?.color) + '20' }}
-                        >
-                          {item.issue?.category?.name || item.originalIssue?.category?.name}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                  
-                  <div className="flex items-center gap-3 mt-2">
-                    <div className={`text-xs px-2 py-1 rounded border ${getPriorityColor(item.priority)}`}>
-                      <Flag className="w-3 h-3 inline mr-1" />
-                      {getPriorityLabel(item.priority)}
-                    </div>
-                    
-                    {item.dueDate && (
-                      <div className={`text-xs flex items-center gap-1 ${dueDateStatus?.color}`}>
-                        <Calendar className="w-3 h-3" />
-                        {format(parseISO(item.dueDate), 'MMM d')}
-                        {dueDateStatus?.status === 'overdue' && <AlertTriangle className="w-3 h-3" />}
-                      </div>
-                    )}
-                    
-                    <div className="text-xs text-gray-500 flex items-center gap-1">
-                      <Clock className="w-3 h-3" />
-                      {format(parseISO(item.createdAt), 'MMM d')}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              {isManaged && (
-                <div className="flex gap-1">
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => {
-                      setEditingItem(item.id)
-                      setEditingNote(prev => ({ ...prev, [item.id]: item.title }))
+              ) : (
+                <div className="flex items-center gap-1">
+                  <h4
+                    className={`font-medium text-sm ${(item.issueId || item.originalIssueId) ? 'cursor-pointer text-blue-700 hover:text-blue-900 hover:underline transition-colors' : ''}`}
+                    onClick={(e) => {
+                      const linkedIssueId = item.issueId || item.originalIssueId;
+                      if (linkedIssueId) {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        window.open(`/dashboard/${linkedIssueId}`, '_blank');
+                      }
                     }}
-                    className="h-6 w-6 p-0"
-                    title="Edit item"
+                    title={
+                      (item.issueId || item.originalIssueId) ?
+                      `Click to open issue in new tab: ${item.issue?.title || item.originalIssue?.title || 'Related Issue'}` :
+                      (item.description || undefined)
+                    }
                   >
-                    <Edit3 className="w-3 h-3" />
-                  </Button>
-                  {item.issue && (
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleRestoreToAvailable(item)}
-                      className="h-6 w-6 p-0 text-blue-600 hover:text-blue-800"
-                      title="Restore to Available from Issues"
-                    >
-                      <Undo2 className="w-3 h-3" />
-                    </Button>
+                    {item.title}
+                  </h4>
+                  {(item.issueId || item.originalIssueId) && (
+                    <span className="text-blue-500 text-xs" title="Linked to an issue">🔗</span>
                   )}
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleDeleteItem(item.id, item)}
-                    className="h-6 w-6 p-0 text-red-600 hover:text-red-800"
-                    title="Remove from manager (restores to available if from issue)"
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
                 </div>
               )}
+
+              {item.description && (
+                <p className="text-xs text-gray-600 mt-1">{item.description}</p>
+              )}
+
+              {(item.issue || item.originalIssue) && (
+                <div className="flex items-center gap-1 mt-1">
+                  <span className="text-xs text-gray-500">From:</span>
+                  <span className="text-xs font-medium text-blue-600 cursor-pointer hover:underline"
+                    onClick={() => window.open(`/dashboard/${item.issueId || item.originalIssueId}`, '_blank')}
+                    title="Click to open issue">{item.issue?.title || item.originalIssue?.title}</span>
+                  {(item.issue?.category || item.originalIssue?.category) && (
+                    <span
+                      className="text-xs px-1 py-0.5 rounded"
+                      style={{ backgroundColor: (item.issue?.category?.color || item.originalIssue?.category?.color) + '20' }}
+                    >
+                      {item.issue?.category?.name || item.originalIssue?.category?.name}
+                    </span>
+                  )}
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 mt-2">
+                <div className={`text-xs px-2 py-1 rounded border ${getPriorityColor(item.priority)}`}>
+                  <Flag className="w-3 h-3 inline mr-1" />
+                  {getPriorityLabel(item.priority)}
+                </div>
+
+                {item.dueDate && (
+                  <div className={`text-xs flex items-center gap-1 ${dueDateStatus?.color}`}>
+                    <Calendar className="w-3 h-3" />
+                    {format(parseISO(item.dueDate), 'MMM d')}
+                    {dueDateStatus?.status === 'overdue' && <AlertTriangle className="w-3 h-3" />}
+                  </div>
+                )}
+
+                <div className="text-xs text-gray-500 flex items-center gap-1">
+                  <Clock className="w-3 h-3" />
+                  {format(parseISO(item.createdAt), 'MMM d')}
+                </div>
+              </div>
             </div>
           </div>
-        )}
-      </Draggable>
+
+          {isManaged && (
+            <div className="flex gap-1">
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleDeleteItem(item.id, item)}
+                className="h-6 w-6 p-0 text-green-600 hover:text-green-800"
+                title="Mark as completed"
+              >
+                <CheckCircle2 className="w-3 h-3" />
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  setEditingItem(item.id)
+                  setEditingNote(prev => ({ ...prev, [item.id]: item.title }))
+                }}
+                className="h-6 w-6 p-0"
+                title="Edit item"
+              >
+                <Edit3 className="w-3 h-3" />
+              </Button>
+              {item.issue && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => handleRestoreToAvailable(item)}
+                  className="h-6 w-6 p-0 text-blue-600 hover:text-blue-800"
+                  title="Restore to Available from Issues"
+                >
+                  <Undo2 className="w-3 h-3" />
+                </Button>
+              )}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => handleDeleteItem(item.id, item)}
+                className="h-6 w-6 p-0 text-red-600 hover:text-red-800"
+                title="Remove from manager (restores to available if from issue)"
+              >
+                <Trash2 className="w-3 h-3" />
+              </Button>
+            </div>
+          )}
+        </div>
+      </div>
     )
   }
 
@@ -448,31 +543,51 @@ export default function ActionItemsPage() {
     const priorityNumber = getIssuePriorityNumber(issue.priority)
     const [isCompleted, setIsCompleted] = useState(false)
 
+    const {
+      attributes,
+      listeners,
+      setNodeRef,
+      transform,
+      transition,
+      isDragging,
+    } = useSortable({ id: issue.id })
+
     const handleComplete = async (completed: boolean) => {
       if (completed) {
-        // When completed, remove from the action items interface
-        // We'll filter it out locally and it won't appear in future loads
         setIsCompleted(true)
-        // Could add API call here to mark as completed if needed
         setTimeout(() => {
-          loadActionItems() // Refresh the list
+          loadActionItems()
         }, 500)
       }
     }
 
     if (isCompleted) {
-      return null // Don't render completed items
+      return null
+    }
+
+    const style = {
+      transform: CSS.Transform.toString(transform),
+      transition,
     }
 
     return (
-      <div className={`p-3 border rounded-lg bg-white shadow-sm transition-all border-l-4 ${getPriorityBorderColor(priorityNumber)}`}>
+      <div
+        ref={setNodeRef}
+        style={style}
+        className={`p-3 border rounded-lg bg-white shadow-sm transition-all border-l-4 ${isDragging ? 'shadow-lg rotate-1 scale-105 z-50' : ''} ${getPriorityBorderColor(priorityNumber)}`}
+      >
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-start gap-2 flex-1">
-            <Checkbox
-              checked={false}
-              onCheckedChange={handleComplete}
-              className="mt-1"
-            />
+            <div
+              {...attributes}
+              {...listeners}
+              className="cursor-grab active:cursor-grabbing p-1 -m-1 hover:bg-gray-100 rounded"
+              title="Drag to reorder"
+              onMouseDown={() => console.log("🖱️ Mouse down on issue grip handle for:", issue.id)}
+              onTouchStart={() => console.log("👆 Touch start on issue grip handle for:", issue.id)}
+            >
+              <GripVertical className="w-4 h-4 text-gray-400" />
+            </div>
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-2">
                 <h4
@@ -510,6 +625,16 @@ export default function ActionItemsPage() {
               </div>
             </div>
           </div>
+
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => handleComplete(true)}
+            className="h-6 w-6 p-0 text-green-600 hover:text-green-800"
+            title="Mark as completed"
+          >
+            <CheckCircle2 className="w-3 h-3" />
+          </Button>
         </div>
       </div>
     )
@@ -526,11 +651,15 @@ export default function ActionItemsPage() {
     )
   }
 
-  // Only show active items - completed items are removed
   const activeItems = allItems.filter(item => !item.completed)
 
   return (
-    <DragDropContext onDragEnd={handleDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
       <div className="space-y-6">
         <div>
           <h1 className="text-3xl font-bold">Action Items Manager</h1>
@@ -543,17 +672,44 @@ export default function ActionItemsPage() {
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>Action Items</span>
-              <Button
-                size="sm"
-                onClick={() => setShowNewItemForm(true)}
-                className="h-8"
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                Add Item
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  onClick={async () => {
+                    const testItem = {
+                      title: "Test Action Item " + Math.floor(Math.random() * 1000),
+                      description: "This is a test item for drag and drop",
+                      priority: 1,
+                      dueDate: null
+                    }
+
+                    const response = await fetch('/api/action-items', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(testItem)
+                    })
+
+                    if (response.ok) {
+                      loadActionItems()
+                    }
+                  }}
+                  variant="outline"
+                  className="h-8"
+                >
+                  Add Test Item
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => setShowNewItemForm(true)}
+                  className="h-8"
+                >
+                  <Plus className="w-4 h-4 mr-1" />
+                  Add Item
+                </Button>
+              </div>
             </CardTitle>
             <CardDescription>
-              All your action items. Mark as completed by checking the box to remove them.
+              All your action items. Drag by the grip handle to reorder, or use the completion button to mark as done.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -603,31 +759,30 @@ export default function ActionItemsPage() {
             <div className="space-y-3">
               {/* Individual Action Items */}
               {activeItems.length > 0 && (
-                <Droppable droppableId="action-items">
-                  {(provided, snapshot) => (
-                    <div
-                      ref={provided.innerRef}
-                      {...provided.droppableProps}
-                      className={`
-                        min-h-16 space-y-2 p-2 rounded-lg transition-colors
-                        ${snapshot.isDraggingOver ? 'bg-blue-50 border-2 border-blue-200 border-dashed' : ''}
-                      `}
-                    >
-                      {activeItems.map((item, index) => (
-                        <ActionItemCard key={item.id} item={item} index={index} isManaged={true} />
+                <div className="space-y-2">
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Individual Action Items</h3>
+                  <SortableContext items={activeItems.map(item => item.id)} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-2">
+                      {activeItems.map((item) => (
+                        <ActionItemCard key={item.id} item={item} isManaged={true} />
                       ))}
-                      {provided.placeholder}
                     </div>
-                  )}
-                </Droppable>
+                  </SortableContext>
+                </div>
               )}
 
               {/* Issues with Rich Text Action Items */}
               {issuesWithActionItems.length > 0 && (
                 <div className="space-y-2">
-                  {issuesWithActionItems.map((issue) => (
-                    <IssueActionItemCard key={issue.id} issue={issue} />
-                  ))}
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Action Items from Issues</h3>
+                  <p className="text-xs text-gray-500 mb-2">Note: Order changes are temporary and reset on page reload</p>
+                  <SortableContext items={issuesWithActionItems.map(issue => issue.id)} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-2">
+                      {issuesWithActionItems.map((issue) => (
+                        <IssueActionItemCard key={issue.id} issue={issue} />
+                      ))}
+                    </div>
+                  </SortableContext>
                 </div>
               )}
 
@@ -642,6 +797,6 @@ export default function ActionItemsPage() {
           </CardContent>
         </Card>
       </div>
-    </DragDropContext>
+    </DndContext>
   )
 }
