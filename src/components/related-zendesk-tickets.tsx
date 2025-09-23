@@ -97,7 +97,11 @@ export function RelatedZendeskTickets({ issueId }: RelatedZendeskTicketsProps) {
     try {
       setIsSearching(true)
       setError(null)
-      const response = await fetch(`/api/zendesk/tickets?search=${encodeURIComponent(searchQuery)}`)
+
+      // Use the same OAuth token as the working Zendesk tickets component
+      const token = '5e3357825fce3ff04ff755b3f51ea709f27cd934501ccddc0afdf5b49fe51fdb'
+
+      const response = await fetch(`/api/zendesk/tickets?search=${encodeURIComponent(searchQuery)}&token=${token}`)
       if (response.ok) {
         const data = await response.json()
         setSearchResults(data.tickets || [])
