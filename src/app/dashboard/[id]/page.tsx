@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button"
 import { getIssue } from "@/lib/actions"
 import { IssueNotes } from "@/components/issue-notes"
 import { IssueActions } from "@/components/issue-actions"
-import { SupportTicketManager } from "@/components/support-ticket-manager"
 import { AdditionalHelpNotes } from "@/components/additional-help-notes-simple"
 import { RelatedZendeskTickets } from "@/components/related-zendesk-tickets"
+import { VendorTickets } from "@/components/vendor-tickets"
 import Link from "next/link"
 import { ArrowLeft, Edit, Calendar, User, AlertTriangle, ChevronDown } from "lucide-react"
 import { formatDistanceToNow, format } from "date-fns"
@@ -211,8 +211,8 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
 
         <div className="space-y-6">
           <IssueActions issue={issue} />
+          <VendorTickets issueId={issue.id} />
           <RelatedZendeskTickets issueId={issue.id} />
-          <SupportTicketManager issue={issue} cmicNotes={issue.cmicNotes} />
           <AdditionalHelpNotes issueId={issue.id} notes={issue.additionalHelpNotes} />
         </div>
       </div>

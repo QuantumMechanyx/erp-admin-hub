@@ -244,13 +244,27 @@ export async function createNote(prevState: unknown, formData: FormData) {
 
   try {
     console.log("Creating note with data:", validatedFields.data)
-    const note = await db.note.create({
-      data: validatedFields.data,
+
+    // Use transaction to create note and update issue timestamp
+    const result = await db.$transaction(async (tx) => {
+      // Create the note
+      const note = await tx.note.create({
+        data: validatedFields.data,
+      })
+
+      // Update the parent issue's updatedAt timestamp
+      await tx.issue.update({
+        where: { id: validatedFields.data.issueId },
+        data: { updatedAt: new Date() }
+      })
+
+      return note
     })
-    console.log("Note created successfully:", note)
+
+    console.log("Note created successfully:", result)
 
     revalidatePath(`/dashboard/${validatedFields.data.issueId}`)
-    return { success: true, note }
+    return { success: true, note: result }
   } catch (error) {
     console.error("Error creating note:", error)
     return {
@@ -276,15 +290,27 @@ export async function createCmicNote(prevState: unknown, formData: FormData) {
     // Clean up email formatting if content looks like email content
     const cleanedContent = cleanEmailContent(validatedFields.data.content)
     
-    const cmicNote = await db.cmicNote.create({
-      data: {
-        ...validatedFields.data,
-        content: cleanedContent,
-      },
+    // Use transaction to create note and update issue timestamp
+    const result = await db.$transaction(async (tx) => {
+      // Create the CMiC note
+      const cmicNote = await tx.cmicNote.create({
+        data: {
+          ...validatedFields.data,
+          content: cleanedContent,
+        },
+      })
+
+      // Update the parent issue's updatedAt timestamp
+      await tx.issue.update({
+        where: { id: validatedFields.data.issueId },
+        data: { updatedAt: new Date() }
+      })
+
+      return cmicNote
     })
 
     revalidatePath(`/dashboard/${validatedFields.data.issueId}`)
-    return { success: true, cmicNote }
+    return { success: true, cmicNote: result }
   } catch (error) {
     return {
       errors: { _form: ["Failed to create CMiC note"] },
@@ -306,13 +332,25 @@ export async function createAdditionalHelpNote(prevState: unknown, formData: For
   }
 
   try {
-    const additionalHelpNote = await db.additionalHelpNote.create({
-      data: validatedFields.data,
+    // Use transaction to create note and update issue timestamp
+    const result = await db.$transaction(async (tx) => {
+      // Create the Additional Help note
+      const additionalHelpNote = await tx.additionalHelpNote.create({
+        data: validatedFields.data,
+      })
+
+      // Update the parent issue's updatedAt timestamp
+      await tx.issue.update({
+        where: { id: validatedFields.data.issueId },
+        data: { updatedAt: new Date() }
+      })
+
+      return additionalHelpNote
     })
 
     revalidatePath(`/dashboard/${validatedFields.data.issueId}`)
     revalidatePath("/meetings")
-    return { success: true, additionalHelpNote }
+    return { success: true, additionalHelpNote: result }
   } catch (error) {
     return {
       errors: { _form: ["Failed to create Additional Help note"] },

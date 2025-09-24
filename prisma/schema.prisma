@@ -41,6 +41,7 @@ model Issue {
   meetingItems        MeetingItem[]
   notes               Note[]
   zendeskTickets      ZendeskTicket[]
+  vendorTickets       VendorTicket[]
 
   @@map("issues")
 }
@@ -246,4 +247,35 @@ enum MeetingStatus {
   PLANNED
   ACTIVE
   COMPLETED
+}
+
+model VendorTicket {
+  id           String            @id @default(cuid())
+  issueId      String
+  ticketNumber String
+  vendor       VendorType
+  status       VendorTicketStatus @default(OPEN)
+  description  String?
+  dateOpened   DateTime          @default(now())
+  dateClosed   DateTime?
+  notes        String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  issue        Issue             @relation(fields: [issueId], references: [id], onDelete: Cascade)
+
+  @@index([issueId])
+  @@map("vendor_tickets")
+}
+
+enum VendorType {
+  CMIC
+  PROCORE
+  OTHER
+}
+
+enum VendorTicketStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
 }
