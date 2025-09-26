@@ -24,9 +24,23 @@ export async function POST(request: NextRequest) {
     }
 
     console.log("Creating note with data:", validatedFields.data)
-    const note = await db.note.create({
-      data: validatedFields.data,
+
+    // Use transaction to create note and update issue timestamp
+    const note = await db.$transaction(async (tx) => {
+      // Create the note
+      const newNote = await tx.note.create({
+        data: validatedFields.data,
+      })
+
+      // Update the parent issue's updatedAt timestamp
+      await tx.issue.update({
+        where: { id: validatedFields.data.issueId },
+        data: { updatedAt: new Date() }
+      })
+
+      return newNote
     })
+
     console.log("Note created successfully:", note)
 
     return NextResponse.json({ success: true, note })
