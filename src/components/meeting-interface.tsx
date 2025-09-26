@@ -19,7 +19,9 @@ import {
   CheckSquare,
   FileText,
   Link,
-  GripVertical
+  GripVertical,
+  Lock,
+  Unlock
 } from "lucide-react"
 import {
   DndContext,
@@ -123,7 +125,19 @@ interface MeetingInterfaceProps {
 }
 
 // Sortable Item Component for drag and drop
-function SortableItem({ id, index, children }: { id: string; index: number; children: React.ReactNode }) {
+function SortableItem({
+  id,
+  index,
+  children,
+  isLocked,
+  onToggleLock
+}: {
+  id: string;
+  index: number;
+  children: React.ReactNode;
+  isLocked: boolean;
+  onToggleLock: (id: string) => void;
+}) {
   const {
     attributes,
     listeners,
@@ -131,7 +145,7 @@ function SortableItem({ id, index, children }: { id: string; index: number; chil
     transform,
     transition,
     isDragging,
-  } = useSortable({ id })
+  } = useSortable({ id, disabled: isLocked })
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -140,18 +154,38 @@ function SortableItem({ id, index, children }: { id: string; index: number; chil
   }
 
   return (
-    <div ref={setNodeRef} style={style} className="relative">
-      <div className="absolute left-2 top-2 flex items-center gap-2 z-10">
-        <div className="bg-primary text-primary-foreground rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">
+    <div ref={setNodeRef} style={style} className={`relative ${isLocked ? 'ring-1 ring-gray-300 bg-gray-50/50' : ''}`}>
+      <div className="absolute left-2 top-2 flex items-center gap-1 z-10">
+        <div className={`rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold ${
+          isLocked
+            ? 'bg-gray-600 text-white'
+            : 'bg-primary text-primary-foreground'
+        }`}>
           {index}
         </div>
         <button
-          {...attributes}
-          {...listeners}
-          className="cursor-grab hover:cursor-grabbing p-1 hover:bg-gray-100 rounded"
+          onClick={() => onToggleLock(id)}
+          className={`p-1 rounded hover:bg-gray-100 transition-colors ${
+            isLocked ? 'text-gray-600' : 'text-gray-500'
+          }`}
+          title={isLocked ? 'Unlock item position' : 'Lock item position'}
         >
-          <GripVertical className="h-4 w-4 text-gray-400" />
+          {isLocked ? (
+            <Lock className="h-4 w-4" />
+          ) : (
+            <Unlock className="h-4 w-4" />
+          )}
         </button>
+        {!isLocked && (
+          <button
+            {...attributes}
+            {...listeners}
+            className="cursor-grab hover:cursor-grabbing p-1 hover:bg-gray-100 rounded"
+            title="Drag to reorder"
+          >
+            <GripVertical className="h-4 w-4 text-gray-400" />
+          </button>
+        )}
       </div>
       {children}
     </div>
@@ -493,6 +527,7 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
   const carriedOverItems = meeting.meetingItems.filter(item => item.carriedOver)
   const initialCurrentItems = meeting.meetingItems.filter(item => !item.carriedOver)
   const [currentItems, setCurrentItems] = useState(initialCurrentItems)
+  const [lockedItems, setLockedItems] = useState<Set<string>>(new Set())
 
   // Update currentItems when meeting data changes
   useEffect(() => {
@@ -515,9 +550,26 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
         const oldIndex = items.findIndex((item) => item.id === active.id)
         const newIndex = items.findIndex((item) => item.id === over?.id)
 
+        // Don't allow reordering if the target position is locked
+        if (over?.id && lockedItems.has(over.id as string)) {
+          return items
+        }
+
         return arrayMove(items, oldIndex, newIndex)
       })
     }
+  }
+
+  const toggleItemLock = (itemId: string) => {
+    setLockedItems(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(itemId)) {
+        newSet.delete(itemId)
+      } else {
+        newSet.add(itemId)
+      }
+      return newSet
+    })
   }
 
   return (
@@ -835,7 +887,13 @@ export function MeetingInterface({ meeting: initialMeeting, availableIssues }: M
                 >
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {currentItems.map((item, index) => (
-                      <SortableItem key={item.id} id={item.id} index={index + 1}>
+                      <SortableItem
+                        key={item.id}
+                        id={item.id}
+                        index={index + 1}
+                        isLocked={lockedItems.has(item.id)}
+                        onToggleLock={toggleItemLock}
+                      >
                         <div className="border rounded-lg p-4 pt-12 space-y-2">
                           <div className="flex items-start justify-between gap-2">
                             <h4 className="font-medium">{item.issue.title}</h4>
