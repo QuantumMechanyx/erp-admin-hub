@@ -33,3 +33,7 @@ export function formatDateForMeetingTitle(): string {
 export function formatLongDateForHeader(): string {
   return formatInPacificTime(new Date(), "EEEE, MMMM d, yyyy")
 }
+
+export function formatTimestampPacific(date: Date | string): string {
+  return formatInPacificTime(date, "MM/dd/yy 'at' h:mm a")
+}

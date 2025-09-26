@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { MessageSquare, Plus, User, Calendar } from "lucide-react"
-import { formatDistanceToNowPacific } from "@/lib/timezone"
+import { formatTimestampPacific } from "@/lib/timezone"
 
 type Note = {
   id: string
@@ -147,7 +147,7 @@ export function IssueNotes({ issueId, notes }: IssueNotesProps) {
                         )}
                         <div className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
-                          {formatDistanceToNowPacific(note.createdAt)}
+                          {formatTimestampPacific(note.createdAt)}
                         </div>
                       </div>
                     </div>

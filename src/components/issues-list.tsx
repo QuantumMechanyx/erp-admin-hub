@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
 import { MessageSquare, User, Calendar, Filter } from "lucide-react"
-import { formatDistanceToNowPacific } from "@/lib/timezone"
+import { formatTimestampPacific } from "@/lib/timezone"
 
 type Issue = {
   id: string
@@ -187,7 +187,7 @@ export function IssuesList({ issues, categories, showCreateButton = true, hideRe
                   </div>
                   <div className="flex items-center gap-1">
                     <Calendar className="w-4 h-4" />
-                    Updated {formatDistanceToNowPacific(issue.updatedAt)}
+                    Updated {formatTimestampPacific(issue.updatedAt)}
                   </div>
                 </div>
                 <Button variant="outline" size="sm" asChild>

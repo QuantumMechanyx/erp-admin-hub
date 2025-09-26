@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge"
 import { Textarea } from "@/components/ui/textarea"
 import { Calendar, Plus, Trash2, Edit2, Ticket, ExternalLink, CheckCircle } from "lucide-react"
 import { format } from "date-fns"
+import { formatTimestampPacific } from "@/lib/timezone"
 
 interface VendorTicket {
   id: string
@@ -365,12 +366,12 @@ export function VendorTickets({ issueId }: VendorTicketsProps) {
                       <div className="flex items-center gap-4 text-xs text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Calendar className="w-3 h-3" />
-                          Opened: {format(new Date(ticket.dateOpened), 'MMM d, yyyy')}
+                          Opened: {formatTimestampPacific(ticket.dateOpened)}
                         </span>
                         {ticket.dateClosed && (
                           <span className="flex items-center gap-1">
                             <CheckCircle className="w-3 h-3" />
-                            Closed: {format(new Date(ticket.dateClosed), 'MMM d, yyyy')}
+                            Closed: {formatTimestampPacific(ticket.dateClosed)}
                           </span>
                         )}
                       </div>

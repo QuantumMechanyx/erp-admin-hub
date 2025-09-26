@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Plus, User, Calendar, X } from "lucide-react"
-import { formatDistanceToNowPacific } from "@/lib/timezone"
+import { formatTimestampPacific } from "@/lib/timezone"
 
 type AdditionalHelpNote = {
   id: string
@@ -109,7 +109,7 @@ export function AdditionalHelpNotes({ issueId, notes }: AdditionalHelpNotesProps
                       </>
                     )}
                     <Calendar className="w-3 h-3" />
-                    <span>{formatDistanceToNowPacific(note.createdAt)}</span>
+                    <span>{formatTimestampPacific(note.createdAt)}</span>
                   </div>
                   <Button
                     variant="ghost"

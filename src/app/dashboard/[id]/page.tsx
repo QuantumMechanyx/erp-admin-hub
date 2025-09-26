@@ -12,6 +12,7 @@ import { VendorTickets } from "@/components/vendor-tickets"
 import Link from "next/link"
 import { ArrowLeft, Edit, Calendar, User, AlertTriangle, ChevronDown } from "lucide-react"
 import { formatDistanceToNow, format } from "date-fns"
+import { formatTimestampPacific } from "@/lib/timezone"
 
 const priorityColors = {
   LOW: "bg-gray-100 text-gray-800",
@@ -49,11 +50,11 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
           <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
             <div className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />
-              Created {format(new Date(issue.createdAt), "MMM d, yyyy")}
+              Created {formatTimestampPacific(issue.createdAt)}
             </div>
             <div className="flex items-center gap-1">
               <Calendar className="w-4 h-4" />
-              Updated {formatDistanceToNow(new Date(issue.updatedAt), { addSuffix: true })}
+              Updated {formatTimestampPacific(issue.updatedAt)}
             </div>
             {issue.assignedTo && (
               <div className="flex items-center gap-1">
