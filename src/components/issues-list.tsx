@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Input } from "@/components/ui/input"
-import { MessageSquare, User, Calendar, Filter } from "lucide-react"
+import { MessageSquare, User, Calendar, Filter, StickyNote } from "lucide-react"
 import { formatTimestampPacific } from "@/lib/timezone"
 
 type Issue = {
@@ -156,6 +156,21 @@ export function IssuesList({ issues, categories, showCreateButton = true, hideRe
                     <p className="text-sm text-muted-foreground line-clamp-2">
                       {issue.description}
                     </p>
+                  )}
+                  {issue.notes && issue.notes.length > 0 && (
+                    <div className="bg-blue-50 border-l-4 border-blue-200 p-3 rounded-r-md">
+                      <div className="flex items-start gap-2">
+                        <StickyNote className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-blue-900 line-clamp-2">
+                            {issue.notes[0].content}
+                          </p>
+                          <p className="text-xs text-blue-600 mt-1">
+                            Latest note • {formatTimestampPacific(issue.notes[0].createdAt)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
                   )}
                 </div>
                 <div className="flex flex-col items-end gap-2">
