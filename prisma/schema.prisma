@@ -70,14 +70,37 @@ model Category {
 }
 
 model Note {
-  id        String   @id @default(cuid())
-  issueId   String
-  content   String
-  author    String?
-  createdAt DateTime @default(now())
-  issue     Issue    @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  id          String       @id @default(cuid())
+  issueId     String
+  content     String
+  author      String?
+  createdAt   DateTime     @default(now())
+  issue       Issue        @relation(fields: [issueId], references: [id], onDelete: Cascade)
+  attachments Attachment[]
 
   @@map("notes")
+}
+
+model Attachment {
+  id          String            @id @default(cuid())
+  noteId      String
+  fileName    String
+  contentType String
+  size        Int
+  storageKey  String            // Vercel Blob URL/key
+  status      AttachmentStatus  @default(UPLOADING)
+  createdBy   String?
+  createdAt   DateTime          @default(now())
+  note        Note              @relation(fields: [noteId], references: [id], onDelete: Cascade)
+
+  @@index([noteId])
+  @@map("attachments")
+}
+
+enum AttachmentStatus {
+  UPLOADING
+  AVAILABLE
+  DELETED
 }
 
 model ActionItem {

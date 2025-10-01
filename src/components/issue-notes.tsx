@@ -7,14 +7,25 @@ import { Textarea } from "@/components/ui/textarea"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
-import { MessageSquare, Plus, User, Calendar } from "lucide-react"
+import { DeleteConfirmationDialog } from "@/components/ui/delete-confirmation-dialog"
+import { MessageSquare, Plus, User, Calendar, Paperclip, Download, X, Trash2 } from "lucide-react"
 import { formatTimestampPacific } from "@/lib/timezone"
+import { deleteNote } from "@/lib/actions"
+
+type Attachment = {
+  id: string
+  fileName: string
+  contentType: string
+  size: number
+  createdAt: Date
+}
 
 type Note = {
   id: string
   content: string
   author?: string | null
   createdAt: Date
+  attachments?: Attachment[]
 }
 
 interface IssueNotesProps {
@@ -25,7 +36,52 @@ interface IssueNotesProps {
 export function IssueNotes({ issueId, notes }: IssueNotesProps) {
   const [showAddNote, setShowAddNote] = useState(false)
   const [content, setContent] = useState("")
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([])
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [uploadingFiles, setUploadingFiles] = useState(false)
+  const [deleteNoteId, setDeleteNoteId] = useState<string | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    setSelectedFiles(prev => [...prev, ...files])
+  }
+
+  const removeFile = (index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const uploadFiles = async (noteId: string) => {
+    if (selectedFiles.length === 0) return
+
+    setUploadingFiles(true)
+    const uploadPromises = selectedFiles.map(async (file) => {
+      const formData = new FormData()
+      formData.append('file', file)
+      formData.append('noteId', noteId)
+      formData.append('createdBy', 'user') // TODO: Get actual user
+
+      const response = await fetch('/api/attachments/upload', {
+        method: 'POST',
+        body: formData
+      })
+
+      if (!response.ok) {
+        throw new Error(`Failed to upload ${file.name}`)
+      }
+
+      return response.json()
+    })
+
+    try {
+      await Promise.all(uploadPromises)
+    } catch (error) {
+      console.error('Error uploading files:', error)
+      throw error
+    } finally {
+      setUploadingFiles(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -34,6 +90,7 @@ export function IssueNotes({ issueId, notes }: IssueNotesProps) {
     setIsSubmitting(true)
 
     try {
+      // Create the note first
       const response = await fetch('/api/notes', {
         method: 'POST',
         headers: {
@@ -48,7 +105,13 @@ export function IssueNotes({ issueId, notes }: IssueNotesProps) {
       const result = await response.json()
 
       if (response.ok && result.success) {
+        // Upload files if any are selected
+        if (selectedFiles.length > 0) {
+          await uploadFiles(result.note.id)
+        }
+
         setContent("")
+        setSelectedFiles([])
         setShowAddNote(false)
         window.location.reload()
       } else {
@@ -58,6 +121,42 @@ export function IssueNotes({ issueId, notes }: IssueNotesProps) {
       console.error("Failed to create note:", error)
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return '0 Bytes'
+    const k = 1024
+    const sizes = ['Bytes', 'KB', 'MB', 'GB']
+    const i = Math.floor(Math.log(bytes) / Math.log(k))
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+  }
+
+  const downloadAttachment = (attachmentId: string, fileName: string) => {
+    const link = document.createElement('a')
+    link.href = `/api/attachments/${attachmentId}/download`
+    link.download = fileName
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+  }
+
+  const handleDeleteNote = async () => {
+    if (!deleteNoteId) return
+
+    setIsDeleting(true)
+    try {
+      const result = await deleteNote(deleteNoteId, issueId)
+      if (result?.success) {
+        setDeleteNoteId(null)
+        window.location.reload()
+      } else if (result?.errors) {
+        console.error("Failed to delete note:", result.errors._form?.[0])
+      }
+    } catch (error) {
+      console.error("Failed to delete note:", error)
+    } finally {
+      setIsDeleting(false)
     }
   }
 
@@ -101,9 +200,44 @@ export function IssueNotes({ issueId, notes }: IssueNotesProps) {
                   />
                 </div>
 
+                <div>
+                  <Label htmlFor={`files-${issueId}`}>Attachments (optional)</Label>
+                  <Input
+                    id={`files-${issueId}`}
+                    type="file"
+                    multiple
+                    onChange={handleFileChange}
+                    className="mt-1"
+                    disabled={isSubmitting}
+                    accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.png,.jpg,.jpeg,.gif"
+                  />
+                  {selectedFiles.length > 0 && (
+                    <div className="mt-2 space-y-1">
+                      {selectedFiles.map((file, index) => (
+                        <div key={index} className="flex items-center justify-between bg-muted p-2 rounded text-sm">
+                          <div className="flex items-center gap-2">
+                            <Paperclip className="w-4 h-4" />
+                            <span>{file.name}</span>
+                            <span className="text-muted-foreground">({formatFileSize(file.size)})</span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeFile(index)}
+                            className="h-6 w-6 p-0"
+                          >
+                            <X className="w-3 h-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 <div className="flex gap-2">
-                  <Button type="submit" size="sm" disabled={isSubmitting || !content.trim()}>
-                    {isSubmitting ? "Adding..." : "Add Note"}
+                  <Button type="submit" size="sm" disabled={isSubmitting || uploadingFiles || !content.trim()}>
+                    {isSubmitting || uploadingFiles ? "Adding..." : "Add Note"}
                   </Button>
                   <Button
                     type="button"
@@ -112,8 +246,9 @@ export function IssueNotes({ issueId, notes }: IssueNotesProps) {
                     onClick={() => {
                       setShowAddNote(false)
                       setContent("")
+                      setSelectedFiles([])
                     }}
-                    disabled={isSubmitting}
+                    disabled={isSubmitting || uploadingFiles}
                   >
                     Cancel
                   </Button>
@@ -150,10 +285,46 @@ export function IssueNotes({ issueId, notes }: IssueNotesProps) {
                           {formatTimestampPacific(note.createdAt)}
                         </div>
                       </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setDeleteNoteId(note.id)}
+                        className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                        title="Delete note"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </Button>
                     </div>
                     <div className="prose prose-sm max-w-none">
                       <p className="whitespace-pre-wrap text-sm">{note.content}</p>
                     </div>
+                    {note.attachments && note.attachments.length > 0 && (
+                      <div className="border-t pt-3">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Paperclip className="w-4 h-4 text-muted-foreground" />
+                          <span className="text-sm font-medium">Attachments ({note.attachments.length})</span>
+                        </div>
+                        <div className="space-y-1">
+                          {note.attachments.map(attachment => (
+                            <div key={attachment.id} className="flex items-center justify-between bg-background border rounded p-2">
+                              <div className="flex items-center gap-2 text-sm">
+                                <Paperclip className="w-3 h-3 text-muted-foreground" />
+                                <span>{attachment.fileName}</span>
+                                <span className="text-muted-foreground">({formatFileSize(attachment.size)})</span>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => downloadAttachment(attachment.id, attachment.fileName)}
+                                className="h-6 px-2"
+                              >
+                                <Download className="w-3 h-3" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -161,6 +332,17 @@ export function IssueNotes({ issueId, notes }: IssueNotesProps) {
           </div>
         )}
       </CardContent>
+
+      <DeleteConfirmationDialog
+        isOpen={!!deleteNoteId}
+        onClose={() => setDeleteNoteId(null)}
+        onConfirm={handleDeleteNote}
+        title="Delete Note"
+        description="This will permanently delete the note and all its attachments. This action cannot be undone."
+        confirmationText="delete"
+        itemName="note"
+        isLoading={isDeleting}
+      />
     </Card>
   )
 }

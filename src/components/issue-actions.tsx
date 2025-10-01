@@ -14,7 +14,14 @@ type Issue = {
   title: string
   priority: "LOW" | "MEDIUM" | "HIGH" | "URGENT"
   status: "OPEN" | "IN_PROGRESS" | "RESOLVED" | "CLOSED"
-  category?: { name: string; color?: string } | null
+  category?: {
+    id: string
+    name: string
+    color?: string | null
+    description?: string | null
+    createdAt?: Date
+    updatedAt?: Date
+  } | null
   createdAt: Date
   updatedAt: Date
 }

@@ -358,6 +358,37 @@ export async function createAdditionalHelpNote(prevState: unknown, formData: For
   }
 }
 
+export async function deleteNote(noteId: string, issueId: string) {
+  try {
+    // Use transaction to delete note and mark attachments as deleted
+    await db.$transaction(async (tx) => {
+      // Mark all attachments as deleted (we keep the records for audit trail)
+      await tx.attachment.updateMany({
+        where: { noteId },
+        data: { status: "DELETED" }
+      })
+
+      // Delete the note
+      await tx.note.delete({
+        where: { id: noteId },
+      })
+
+      // Update the parent issue's updatedAt timestamp
+      await tx.issue.update({
+        where: { id: issueId },
+        data: { updatedAt: new Date() }
+      })
+    })
+
+    revalidatePath(`/dashboard/${issueId}`)
+    return { success: true }
+  } catch (error) {
+    return {
+      errors: { _form: ["Failed to delete note"] },
+    }
+  }
+}
+
 export async function deleteAdditionalHelpNote(noteId: string, issueId: string) {
   try {
     await db.additionalHelpNote.delete({
@@ -457,6 +488,12 @@ export async function getIssue(id: string) {
       include: {
         category: true,
         notes: {
+          include: {
+            attachments: {
+              where: { status: "AVAILABLE" },
+              orderBy: { createdAt: "desc" },
+            },
+          },
           orderBy: { createdAt: "desc" },
         },
         cmicNotes: {
