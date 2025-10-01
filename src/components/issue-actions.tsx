@@ -23,6 +23,28 @@ interface IssueActionsProps {
   issue: Issue
 }
 
+const getCategoryStyle = (color?: string | null) => {
+  if (!color) return {}
+
+  // If it's a hex color, convert to rgba for background
+  if (color && color.startsWith('#')) {
+    // Convert hex to RGB
+    const hex = color.replace('#', '')
+    const r = parseInt(hex.substring(0, 2), 16)
+    const g = parseInt(hex.substring(2, 4), 16)
+    const b = parseInt(hex.substring(4, 6), 16)
+
+    return {
+      backgroundColor: `rgba(${r}, ${g}, ${b}, 0.2)`, // 20% opacity for background
+      color: color,
+      borderColor: color
+    }
+  }
+
+  // If it's a Tailwind color class, return empty object to use className
+  return {}
+}
+
 export function IssueActions({ issue }: IssueActionsProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [showArchiveDialog, setShowArchiveDialog] = useState(false)
@@ -101,7 +123,12 @@ export function IssueActions({ issue }: IssueActionsProps) {
             {issue.category && (
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Category:</span>
-                <Badge variant="outline">{issue.category.name}</Badge>
+                <Badge
+                  variant="outline"
+                  style={getCategoryStyle(issue.category.color)}
+                >
+                  {issue.category.name}
+                </Badge>
               </div>
             )}
           </div>

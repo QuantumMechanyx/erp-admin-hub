@@ -28,6 +28,28 @@ const statusColors = {
   CLOSED: "bg-gray-100 text-gray-800"
 }
 
+const getCategoryStyle = (color?: string | null) => {
+  if (!color) return {}
+
+  // If it's a hex color, convert to rgba for background
+  if (color && color.startsWith('#')) {
+    // Convert hex to RGB
+    const hex = color.replace('#', '')
+    const r = parseInt(hex.substring(0, 2), 16)
+    const g = parseInt(hex.substring(2, 4), 16)
+    const b = parseInt(hex.substring(4, 6), 16)
+
+    return {
+      backgroundColor: `rgba(${r}, ${g}, ${b}, 0.2)`, // 20% opacity for background
+      color: color,
+      borderColor: color
+    }
+  }
+
+  // If it's a Tailwind color class, return empty object to use className
+  return {}
+}
+
 export default async function IssueDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const issue = await getIssue(id)
@@ -72,7 +94,10 @@ export default async function IssueDetailPage({ params }: { params: Promise<{ id
             {issue.status.replace("_", " ")}
           </Badge>
           {issue.category && (
-            <Badge variant="outline">
+            <Badge
+              variant="outline"
+              style={getCategoryStyle(issue.category.color)}
+            >
               {issue.category.name}
             </Badge>
           )}
