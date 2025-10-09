@@ -237,7 +237,7 @@ export function IssueNotes({ issueId, notes }: IssueNotesProps) {
 
                 <div className="flex gap-2">
                   <Button type="submit" size="sm" disabled={isSubmitting || uploadingFiles || !content.trim()}>
-                    {isSubmitting || uploadingFiles ? "Adding..." : "Add Note"}
+                    {isSubmitting || uploadingFiles ? "Saving..." : "Save"}
                   </Button>
                   <Button
                     type="button"
